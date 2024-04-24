@@ -4,8 +4,10 @@ import os
 import re
 import shutil
 import time
+from _socket import gaierror
 from datetime import datetime
 from pathlib import Path
+from socket import socket
 from typing import NamedTuple, List
 
 from slurmpilot.config import Config, GeneralConfig
@@ -100,6 +102,12 @@ class SlurmWrapper:
             for cluster, config in self.config.cluster_configs.items()
             if cluster in clusters
         }
+        for cluster, connection in self.connections.items():
+            try:
+                logger.debug(f"Try sending command to {cluster}.")
+                connection.run("ls")
+            except gaierror as e:
+                raise ValueError(f"Cannot connect to cluster {cluster}. Verify your ssh access.")
 
     def list_clusters(self, cluster: str | None = None) -> List[str]:
         # return a list consisting of the provided cluster if not None or all the clusters if None
@@ -157,6 +165,10 @@ class SlurmWrapper:
         :param max_seconds: waits for the given number of seconds if defined else waits for status COMPLETED or FAILED
         :return: final status polled
         """
+        if callback is None:
+            callback = lambda i, current_status: print(
+                f"current status {current_status}, waiting 1s"
+            )
         i = 0
         current_status = self.status(jobname)
         while (

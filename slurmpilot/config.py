@@ -37,7 +37,7 @@ class Config:
         cluster_configs = {
             cluster_config_path.stem: load_cluster_config(cluster_config_path)
             for cluster_config_path in (path / "clusters").rglob("*.yaml")
-            if cluster_config_path.stem in clusters
+            if clusters is None or cluster_config_path.stem in clusters
         }
         return cls(general_config, cluster_configs)
 
