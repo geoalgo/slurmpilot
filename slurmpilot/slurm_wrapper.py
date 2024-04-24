@@ -10,6 +10,7 @@ from pathlib import Path
 from socket import socket
 from typing import NamedTuple, List
 
+from invoke import UnexpectedExit
 from paramiko.ssh_exception import AuthenticationException
 
 from slurmpilot.config import Config, GeneralConfig
@@ -62,22 +63,23 @@ class JobCreationInfo(NamedTuple):
         """
         res = ""
         sbatch_line = lambda config: f"#SBATCH {config}\n"
-        res += sbatch_line(f"-J {self.jobname}")
-        res += sbatch_line(f"-o logs/stdout")
-        res += sbatch_line(f"-e logs/stderr")
+        res += sbatch_line(f"--job-name={self.jobname}")
+        res += sbatch_line(f"--output=logs/stdout")
+        res += sbatch_line(f"--error=logs/stderr")
         if self.n_cpus:
-            res += sbatch_line(f"-c {self.n_cpus}")
+            res += sbatch_line(f"--cpus-per-task={self.n_cpus}")
         if self.partition:
-            res += sbatch_line(f"-p {self.partition}")
+            res += sbatch_line(f"--partition={self.partition}")
         if self.mem:
-            res += sbatch_line(f"--mem {self.mem}")
+            res += sbatch_line(f"--mem={self.mem}")
         if self.n_gpus and self.n_gpus > 0:
             res += sbatch_line(f"--gres=gpu:{self.n_gpus}")
         if self.account:
-            res += sbatch_line(f"-A {self.account}")
+            res += sbatch_line(f"--account={self.account}")
+        if self.max_runtime_minutes:
+            assert isinstance(self.max_runtime_minutes, int), "maxruntime must be an integer expressing the number of minutes"
+            res += sbatch_line(f"--time={self.max_runtime_minutes}")
         return res
-        if self.max_runtime:
-            res += f"{sbatch_prefix} --time={self.max_runtime}"
 
 class JobStatus:
     completed: str = "COMPLETED"
@@ -201,9 +203,12 @@ class SlurmWrapper:
             export_env += ",".join(f"{var_name}={var_value}" for var_name, var_value in env.items())
         else:
             export_env = ""
-        res = cluster_connection.run(
-            f"cd {remote_job_path.job_path()}; sbatch {export_env} slurm_script.sh"
-        )
+        try:
+            res = cluster_connection.run(
+                f"cd {remote_job_path.job_path()}; sbatch {export_env} slurm_script.sh"
+            )
+        except UnexpectedExit as e:
+            raise ValueError("Could not execute sbatch on the remote host, error:" + str(e))
         if res.failed:
             raise ValueError(
                 f"Could not submit job, got the following error:\n{res.stderr}"
