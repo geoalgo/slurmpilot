@@ -10,6 +10,7 @@ def test_preamble():
         n_cpus=1,
         n_gpus=2,
         mem=100,
+        account="unicorn"
     )
     sbatch_preamble = jobinfo.sbatch_preamble().split("\n")
     sbatch_preamble = set(x for x in sbatch_preamble if x)  # remove empty lines
@@ -23,6 +24,7 @@ def test_preamble():
         "#SBATCH -c 1",
         "#SBATCH --gres=gpu:2",
         "#SBATCH --mem 100",
+        "#SBATCH -A unicorn"
     }
     for line in expected_preamble_lines:
         assert line in sbatch_preamble

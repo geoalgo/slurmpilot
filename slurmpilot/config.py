@@ -22,6 +22,7 @@ class ClusterConfig(NamedTuple):
     host: str
     remote_path: str
     account: str | None = None
+    user: str | None = None
 
 
 class Config:

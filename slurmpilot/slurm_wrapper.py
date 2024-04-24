@@ -10,6 +10,8 @@ from pathlib import Path
 from socket import socket
 from typing import NamedTuple, List
 
+from paramiko.ssh_exception import AuthenticationException
+
 from slurmpilot.config import Config, GeneralConfig
 from slurmpilot.jobpath import JobPathLogic
 from slurmpilot.remote_command import (
@@ -35,9 +37,11 @@ class JobCreationInfo(NamedTuple):
     cluster: str = None
     partition: str = None
     n_cpus: int = 1  # number of cores
-    n_gpus: int = None  # number of gpus
+    n_gpus: int = None  # number of gpus per node
     mem: int = 8000  # memory pool for each core in MB
     max_runtime_minutes: int = 60  # max runtime in minutes
+    account: str = None
+    env: dict = dict()
 
     def check_path(self):
         assert Path(
@@ -69,10 +73,11 @@ class JobCreationInfo(NamedTuple):
             res += sbatch_line(f"--mem {self.mem}")
         if self.n_gpus and self.n_gpus > 0:
             res += sbatch_line(f"--gres=gpu:{self.n_gpus}")
+        if self.account:
+            res += sbatch_line(f"-A {self.account}")
         return res
         if self.max_runtime:
             res += f"{sbatch_prefix} --time={self.max_runtime}"
-
 
 class JobStatus:
     completed: str = "COMPLETED"
@@ -98,7 +103,7 @@ class SlurmWrapper:
             )
         self.clusters = clusters
         self.connections = {
-            cluster: RemoteCommandExecutionFabrik(master=config.host)
+            cluster: RemoteCommandExecutionFabrik(master=config.host, user=config.user)
             for cluster, config in self.config.cluster_configs.items()
             if cluster in clusters
         }
@@ -106,7 +111,7 @@ class SlurmWrapper:
             try:
                 logger.debug(f"Try sending command to {cluster}.")
                 connection.run("ls")
-            except gaierror as e:
+            except (gaierror, AuthenticationException) as e:
                 raise ValueError(f"Cannot connect to cluster {cluster}. Verify your ssh access.")
 
     def list_clusters(self, cluster: str | None = None) -> List[str]:
@@ -144,7 +149,7 @@ class SlurmWrapper:
 
         # call sbatch remotely
         jobid = self._call_sbatch_remotely(
-            cluster_connection, local_job_paths, remote_job_paths
+            cluster_connection, local_job_paths, remote_job_paths, job_info.env,
         )
         logger.info(f"Scheduled job with jobid={jobid} on slurm")
 
@@ -186,10 +191,18 @@ class SlurmWrapper:
         cluster_connection: RemoteExecution,
         local_job_paths: JobPathLogic,
         remote_job_path: JobPathLogic,
+        env: dict,
     ) -> int:
         # call sbatch remotely and returns slurm job id if successful
+        if env:
+            # pass environment variable to sbatch in the following form:
+            # sbatch --export=REPS=500,X='test' slurm_script.sh
+            export_env = "--export="
+            export_env += ",".join(f"{var_name}={var_value}" for var_name, var_value in env.items())
+        else:
+            export_env = ""
         res = cluster_connection.run(
-            f"cd {remote_job_path.job_path()}; sbatch slurm_script.sh"
+            f"cd {remote_job_path.job_path()}; sbatch {export_env} slurm_script.sh"
         )
         if res.failed:
             raise ValueError(
@@ -281,6 +294,7 @@ class SlurmWrapper:
         """
         if jobname is None:
             jobname = self.latest_job()
+            print(f"No jobname was passed, showing log of latest job {jobname}")
         cluster = self.cluster(jobname)
         stderr, stdout = self.log(jobname=jobname, cluster=cluster)
         if stderr:
@@ -289,12 +303,14 @@ class SlurmWrapper:
             print(f"stdout:\n{stdout}")
 
     def latest_job(self) -> str:
-        files = Path(self.config.local_slurmpilot_path()).expanduser().glob("*")
-        latest_file = max(
-            [f for f in files if f.is_dir()], key=lambda item: item.stat().st_ctime
-        )
-        jobname = Path(latest_file).name
-        return jobname
+        files = list(Path(self.config.local_slurmpilot_path()).expanduser().glob("*"))
+        if len(files) > 0:
+            latest_file = max(
+                [f for f in files if f.is_dir()], key=lambda item: item.stat().st_ctime
+            )
+            jobname = Path(latest_file).name
+            return jobname
+        raise ValueError(f"No job was found at {self.config.local_slurmpilot_path()}")
 
     def cluster(self, jobname: str):
         """

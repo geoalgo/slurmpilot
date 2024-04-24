@@ -43,12 +43,14 @@ class RemoteExecution:
 
 class RemoteCommandExecutionFabrik(RemoteExecution):
     # TODO we could create a dependency free version with `getstatusoutput` that calls ssh command
-    def __init__(self, master: str, proxy: Optional[str] = None):
+    def __init__(self, master: str, user: str | None = None, proxy: str | None = None):
         super().__init__(master=master, proxy=proxy)
         from fabric import Connection
 
         self.connection = Connection(
-            self.master, gateway=None if not proxy else Connection(proxy)
+            self.master,
+            user=user,
+            gateway=None if not proxy else Connection(proxy)
         )
 
     def run(self, command: str, pty: bool = False) -> CommandResult:
