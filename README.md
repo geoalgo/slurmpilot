@@ -6,6 +6,27 @@ pre-commit install
 pre-commit autoupdate
 ```
 
+## Scheduling a job
+### Workflow
+When scheduling a job, the files required to run it are first copied to `~/slurmpilot/your_job_name` and then
+send to the remote host to `~/slurmpilot/your_job_name` (those defaults paths are modifiable).
+
+In particular, the following files are generated locally under `~/slurmpilot/your_job_name`:
+* metadata.json: contains metadata such as time and the configuration of the job that was scheduled
+* jobid.json: contains the slurm jobid obtained when scheduling the job, if this step was successful
+* slurm_script.sh: a slurm script automatically generated from your options that is executed on the remote node with sbatch
+* src_dir: the folder containing the entrypoint
+* src_dir/entrypoing: the entrypoint to be executed
+
+On the remote host, the logs are written under `logs/stderr` and `logs/stdout` and the current working dir is `~/slurmpilot/your_job_name`. 
+
+
+
+
+### Job file structure
+
+
+
 ## North star
 Support similar configs as skypilot, also 
 https://github.com/skypilot-org/skypilot/blob/master/examples/huggingface_glue_imdb_app.yaml
@@ -25,20 +46,19 @@ Mid-term:
 ## Tasks
 
 **TODOs**
-* set environment variables
-* stop all jobs
-* support passing path to local configs
 * subfolders
+* support setting local configs path via environment variables
+* stop all jobs
 * allow to share common folders to avoid sending code lots of times?
 * sync artefact of a job
-* remove/replace sfree
-* local configurations to allow clean repo, could be located in ~/slurmpilot/config
-* test generation of slurm script/package to be sent
-* able to see logs of latest job
 
 **DONE**
+* local configurations to allow clean repo, could be located in ~/slurmpilot/config
+* set environment variables
 * able to create jobs
+* able to see logs of latest job
 * run ssh command to remote host
+* test generation of slurm script/package to be sent
 * run sfree on remote cluster
 * able to see logs of one job
 * local path rather that current dir
