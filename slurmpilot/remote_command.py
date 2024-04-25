@@ -28,7 +28,7 @@ class RemoteExecution:
         self.master = master
         self.proxy = proxy
 
-    def run(self, command: str, pty: bool = False) -> CommandResult:
+    def run(self, command: str, pty: bool = False, env: dict | None = None) -> CommandResult:
         raise NotImplementedError()
 
     def upload_file(self, local_path: Path, remote_path: Path = Path("/")):
@@ -53,8 +53,8 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
             gateway=None if not proxy else Connection(proxy)
         )
 
-    def run(self, command: str, pty: bool = False) -> CommandResult:
-        fabric_result = self.connection.run(command=command, hide=True, pty=pty)
+    def run(self, command: str, pty: bool = False, env: dict | None = None) -> CommandResult:
+        fabric_result = self.connection.run(command=command, hide=True, pty=pty, env=env)
         # TODO show error when failed
         if fabric_result.failed:
             logging.info(f"Command {command} failed\n{fabric_result.stderr}")

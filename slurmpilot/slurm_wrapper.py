@@ -13,6 +13,7 @@ from typing import NamedTuple, List
 from invoke import UnexpectedExit
 from paramiko.ssh_exception import AuthenticationException
 
+from callback.callback import SlurmSchedulerCallback
 from slurmpilot.config import Config, GeneralConfig
 from slurmpilot.jobpath import JobPathLogic
 from slurmpilot.remote_command import (
@@ -78,7 +79,8 @@ class JobCreationInfo(NamedTuple):
             res += sbatch_line(f"--account={self.account}")
         if self.max_runtime_minutes:
             assert isinstance(self.max_runtime_minutes, int), "maxruntime must be an integer expressing the number of minutes"
-            res += sbatch_line(f"--time={self.max_runtime_minutes}")
+            res += sbatch_line(f"--time={self.max_runtime_minutes}:0")
+        res += sbatch_line("--chdir .")
         return res
 
 class JobStatus:
@@ -104,17 +106,17 @@ class SlurmWrapper:
                 f"available clusters: {self.config.cluster_configs.keys()}"
             )
         self.clusters = clusters
-        self.connections = {
-            cluster: RemoteCommandExecutionFabrik(master=config.host, user=config.user)
-            for cluster, config in self.config.cluster_configs.items()
-            if cluster in clusters
-        }
-        for cluster, connection in self.connections.items():
-            try:
-                logger.debug(f"Try sending command to {cluster}.")
-                connection.run("ls")
-            except (gaierror, AuthenticationException) as e:
-                raise ValueError(f"Cannot connect to cluster {cluster}. Verify your ssh access.")
+        self.job_scheduling_callback = SlurmSchedulerCallback()
+        self.connections = {}
+        for cluster, config in self.config.cluster_configs.items():
+            if cluster in clusters:
+                self.connections[cluster] = RemoteCommandExecutionFabrik(master=config.host, user=config.user)
+                try:
+                    logger.debug(f"Try sending command to {cluster}.")
+                    self.job_scheduling_callback.on_establishing_connection(cluster=cluster)
+                    self.connections[cluster].run("ls")
+                except (gaierror, AuthenticationException) as e:
+                    raise ValueError(f"Cannot connect to cluster {cluster}. Verify your ssh access.")
 
     def list_clusters(self, cluster: str | None = None) -> List[str]:
         # return a list consisting of the provided cluster if not None or all the clusters if None
@@ -139,21 +141,29 @@ class SlurmWrapper:
         """
         job_info.check_path()
         cluster_connection = self.connections[job_info.cluster]
-        logger.info(f"Scheduling {job_info.jobname} on cluster {job_info.cluster}")
+        self.job_scheduling_callback.on_job_scheduled_start(cluster=job_info.cluster, jobname=job_info.jobname)
         # generate slurm launcher script in slurmpilot dir
         local_job_paths = self._generate_local_folder(job_info)
 
         # tar and send slurmpilot dir
         remote_job_paths = self.remote_path(job_info)
+        self.job_scheduling_callback.on_sending_artifact(
+            localpath=str(local_job_paths.resolve_path()),
+            remotepath=str(remote_job_paths.resolve_path()),
+            cluster=job_info.cluster,
+            # f"Preparing local folder at {local_job_paths.resolve_path()}"
+        )
+
         cluster_connection.upload_folder(
             local_job_paths.job_path(), remote_job_paths.job_path().parent
         )
 
         # call sbatch remotely
         jobid = self._call_sbatch_remotely(
-            cluster_connection, local_job_paths, remote_job_paths, job_info.env,
+            cluster_connection, local_job_paths, remote_job_paths,
+            sbatch_env=job_info.env,
         )
-        logger.info(f"Scheduled job with jobid={jobid} on slurm")
+        self.job_scheduling_callback.on_job_submitted_to_slurm(jobname=job_info.jobname, jobid=jobid)
 
         return jobid
 
@@ -173,8 +183,10 @@ class SlurmWrapper:
         :return: final status polled
         """
         if callback is None:
-            callback = lambda i, current_status: print(
-                f"current status {current_status}, waiting 1s"
+            callback = lambda i, current_status: self.job_scheduling_callback.on_waiting_completion(
+                jobname=jobname,
+                status=current_status,
+                n_seconds_wait=1,
             )
         i = 0
         current_status = self.status(jobname)
@@ -193,19 +205,23 @@ class SlurmWrapper:
         cluster_connection: RemoteExecution,
         local_job_paths: JobPathLogic,
         remote_job_path: JobPathLogic,
-        env: dict,
+        sbatch_env: dict,
     ) -> int:
         # call sbatch remotely and returns slurm job id if successful
-        if env:
+        if sbatch_env:
             # pass environment variable to sbatch in the following form:
             # sbatch --export=REPS=500,X='test' slurm_script.sh
             export_env = "--export="
-            export_env += ",".join(f"{var_name}={var_value}" for var_name, var_value in env.items())
+            export_env += ",".join(f"{var_name}={var_value}" for var_name, var_value in sbatch_env.items())
         else:
             export_env = ""
         try:
             res = cluster_connection.run(
-                f"cd {remote_job_path.job_path()}; sbatch {export_env} slurm_script.sh"
+                f"cd {remote_job_path.job_path()}; sbatch {export_env} slurm_script.sh",
+                env={
+                    "SLURMPILOT_PATH": remote_job_path.slurmpilot_path(),
+                    "SLURMPILOT_JOBPATH": remote_job_path.resolve_path(),
+                }
             )
         except UnexpectedExit as e:
             raise ValueError("Could not execute sbatch on the remote host, error:" + str(e))
@@ -254,7 +270,6 @@ class SlurmWrapper:
         ), f"jobname {job_info.jobname} has already been used, jobnames must be unique please use another one"
 
         # copy source, generate main slurm script and metadata
-        logger.info(f"Preparing local folder at {local_job_paths.resolve_path()}")
         shutil.copytree(src=job_info.src_dir, dst=local_job_paths.src_path())
         self._generate_main_slurm_script(local_job_paths, job_info)
         self._generate_metadata(local_job_paths, job_info)

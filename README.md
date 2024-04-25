@@ -18,14 +18,15 @@ In particular, the following files are generated locally under `~/slurmpilot/you
 * src_dir: the folder containing the entrypoint
 * src_dir/entrypoing: the entrypoint to be executed
 
-On the remote host, the logs are written under `logs/stderr` and `logs/stdout` and the current working dir is `~/slurmpilot/your_job_name`. 
-
-
-
+On the remote host, the logs are written under `logs/stderr` and `logs/stdout` and the current working dir is `~/slurmpilot/your_job_name`.
 
 ### Job file structure
 
 
+## FAQ
+
+**Writing common setup files.**
+Use SLURMPILOT_PATH, see XX as an example.
 
 ## North star
 Support similar configs as skypilot, also 

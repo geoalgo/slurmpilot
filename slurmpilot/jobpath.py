@@ -45,6 +45,8 @@ class JobPathLogic:
             return Path(self.root_path) / self.jobname / path
         else:
             return Path(self.root_path) / self.jobname
+    def slurmpilot_path(self) -> Path:
+        return Path(self.root_path)
 
     def metadata_path(self) -> Path:
         return self.resolve_path("metadata.json")
