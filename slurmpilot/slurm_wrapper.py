@@ -40,7 +40,7 @@ class JobCreationInfo(NamedTuple):
     partition: str = None
     n_cpus: int = 1  # number of cores
     n_gpus: int = None  # number of gpus per node
-    mem: int = 8000  # memory pool for each core in MB
+    mem: int = None  # memory pool for each core in MB
     max_runtime_minutes: int = 60  # max runtime in minutes
     account: str = None
     env: dict = dict()
@@ -79,8 +79,8 @@ class JobCreationInfo(NamedTuple):
             res += sbatch_line(f"--account={self.account}")
         if self.max_runtime_minutes:
             assert isinstance(self.max_runtime_minutes, int), "maxruntime must be an integer expressing the number of minutes"
-            res += sbatch_line(f"--time={self.max_runtime_minutes}:0")
-        res += sbatch_line("--chdir .")
+            res += sbatch_line(f"--time={self.max_runtime_minutes}")
+        # res += sbatch_line("--chdir .")
         return res
 
 class JobStatus:
@@ -88,9 +88,10 @@ class JobStatus:
     pending: str = "PENDING"
     failed: str = "FAILED"
     running: str = "RUNNING"
+    cancelled: str = "CANCELLED"
 
     def statuses(self):
-        return [self.completed, self.pending, self.failed, self.running]
+        return [self.completed, self.pending, self.failed, self.running, self.cancelled]
 
 
 class SlurmWrapper:
@@ -176,28 +177,28 @@ class SlurmWrapper:
         self,
         jobname: str,
         max_seconds: int = 60,
-        callback=None,
     ) -> str:
         """
         :param max_seconds: waits for the given number of seconds if defined else waits for status COMPLETED or FAILED
         :return: final status polled
         """
-        if callback is None:
-            callback = lambda i, current_status: self.job_scheduling_callback.on_waiting_completion(
-                jobname=jobname,
-                status=current_status,
-                n_seconds_wait=1,
-            )
-        i = 0
+        from rich.live import Live
+        from rich.text import Text
+        from rich.spinner import Spinner
+        spinner_name = "dots"
         current_status = self.status(jobname)
-        while (
-            current_status in [JobStatus.pending, JobStatus.running] and i < max_seconds
-        ):
-            if callback:
-                callback(i, current_status)
-            time.sleep(1)
-            i += 1
-            current_status = self.status(jobname)
+        text = f"Waiting job to finish, current status {current_status}"
+        wait_interval = 5
+        with Live(Spinner(spinner_name, text=Text(text, style="green")), refresh_per_second=20) as live:
+            i = 0
+            while (
+                    current_status in [JobStatus.pending, JobStatus.running] and wait_interval * i < max_seconds
+            ):
+                current_status = self.status(jobname)
+                text = f"Waiting job to finish, current status {current_status} (updated every {wait_interval}s, waited for {wait_interval * i}s)"
+                live.renderable.update(text=Text(text, style="green"))
+                time.sleep(wait_interval)
+                i += 1
         return current_status
 
     def _call_sbatch_remotely(
@@ -217,7 +218,7 @@ class SlurmWrapper:
             export_env = ""
         try:
             res = cluster_connection.run(
-                f"cd {remote_job_path.job_path()}; sbatch {export_env} slurm_script.sh",
+                f"cd {remote_job_path.job_path()}; mkdir -p logs/; sbatch {export_env} slurm_script.sh",
                 env={
                     "SLURMPILOT_PATH": remote_job_path.slurmpilot_path(),
                     "SLURMPILOT_JOBPATH": remote_job_path.resolve_path(),
@@ -397,6 +398,9 @@ class SlurmWrapper:
         # TODO a bit fragile
         assert "State" in stdout
         status = res.stdout.split("|")[1].strip("\n")
+        if "CANCELLED" in status:
+            # 'CANCELLED by 25416' -> CANCELLED
+            status = status.split(" ")[0]
         if len(status) == 0:
             return JobStatus.pending
         else:

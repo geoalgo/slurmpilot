@@ -16,7 +16,7 @@ class SlurmSchedulerCallbackInterface:
 
 class SlurmSchedulerCallback(SlurmSchedulerCallbackInterface):
     def __init__(self):
-        self.format_pattern = "1;34;40"
+        self.format_pattern = "0;30;34"
 
     def format(self, s):
         return f'\x1b[{self.format_pattern}m{s}\x1b[0m'
@@ -31,8 +31,9 @@ class SlurmSchedulerCallback(SlurmSchedulerCallbackInterface):
         print(self.format(f"Sending job data from {localpath} to {cluster}:{remotepath}."))
 
     def on_job_submitted_to_slurm(self, jobid: int, jobname: str):
-        print(self.format(f"Job submitted to Slurm with the following id {jobid}, saving the jobid locally."))
+        print(self.format(f"Job submitted to Slurm with the following id {jobid} saving the jobid locally."))
     def on_waiting_completion(self, jobname: str, status: str, n_seconds_wait: int):
+        # TODO dependency inversion to support rich
         return print(self.format(f"{jobname} status {status}, waiting {n_seconds_wait}s"))
 
 if __name__ == '__main__':
@@ -44,7 +45,7 @@ if __name__ == '__main__':
         for style in range(8):
             for fg in range(30, 38):
                 s1 = ''
-                for bg in range(40, 48):
+                for bg in range(30, 48):
                     format = ';'.join([str(style), str(fg), str(bg)])
                     s1 += '\x1b[%sm %s \x1b[0m' % (format, format)
                 print(s1)

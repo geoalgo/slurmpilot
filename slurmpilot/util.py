@@ -40,4 +40,4 @@ def print_table(rows):
     if len(rows) > 0:
         import pandas as pd
 
-        print(pd.DataFrame(rows).to_string())
+        print(pd.DataFrame(rows).set_index("JobName").to_string())
