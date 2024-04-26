@@ -188,7 +188,7 @@ class SlurmWrapper:
         spinner_name = "dots"
         current_status = self.status(jobname)
         text = f"Waiting job to finish, current status {current_status}"
-        wait_interval = 5
+        wait_interval = 1
         with Live(Spinner(spinner_name, text=Text(text, style="green")), refresh_per_second=20) as live:
             i = 0
             while (
@@ -221,7 +221,9 @@ class SlurmWrapper:
                 f"cd {remote_job_path.job_path()}; mkdir -p logs/; sbatch {export_env} slurm_script.sh",
                 env={
                     # "SLURMPILOT_PATH": remote_job_path.slurmpilot_path(),
-                    "SLURMPILOT_PATH": "~/slurmpilot",  # TODO FIXME
+                    # TODO FIXME HIGH priority
+                    #  1) consider evaluating a path on remote to fix the issue
+                    "SLURMPILOT_PATH": "/p/home/jusers/salinas2/juwels/salinas2/slurmpilot",
                     "SLURMPILOT_JOBPATH": remote_job_path.resolve_path(),
                 }
             )
