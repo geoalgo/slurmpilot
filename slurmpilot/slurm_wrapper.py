@@ -185,6 +185,7 @@ class SlurmWrapper:
         from rich.live import Live
         from rich.text import Text
         from rich.spinner import Spinner
+        starttime = time.time()
         spinner_name = "dots"
         current_status = self.status(jobname)
         text = f"Waiting job to finish, current status {current_status}"
@@ -195,7 +196,8 @@ class SlurmWrapper:
                     current_status in [JobStatus.pending, JobStatus.running] and wait_interval * i < max_seconds
             ):
                 current_status = self.status(jobname)
-                text = f"Waiting job to finish, current status {current_status} (updated every {wait_interval}s, waited for {wait_interval * i}s)"
+                text = (f"Waiting job to finish, current status {current_status} (updated every {wait_interval}s, "
+                        f"waited for {int(time.time() - starttime)}s)")
                 live.renderable.update(text=Text(text, style="green"))
                 time.sleep(wait_interval)
                 i += 1
