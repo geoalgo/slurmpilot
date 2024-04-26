@@ -220,7 +220,8 @@ class SlurmWrapper:
             res = cluster_connection.run(
                 f"cd {remote_job_path.job_path()}; mkdir -p logs/; sbatch {export_env} slurm_script.sh",
                 env={
-                    "SLURMPILOT_PATH": remote_job_path.slurmpilot_path(),
+                    # "SLURMPILOT_PATH": remote_job_path.slurmpilot_path(),
+                    "SLURMPILOT_PATH": "~/slurmpilot",  # TODO FIXME
                     "SLURMPILOT_JOBPATH": remote_job_path.resolve_path(),
                 }
             )
