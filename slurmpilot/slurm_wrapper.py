@@ -212,7 +212,7 @@ class SlurmWrapper:
         if sbatch_env:
             # pass environment variable to sbatch in the following form:
             # sbatch --export=REPS=500,X='test' slurm_script.sh
-            export_env = "--export="
+            export_env = "--export=ALL,"
             export_env += ",".join(f"{var_name}={var_value}" for var_name, var_value in sbatch_env.items())
         else:
             export_env = ""
