@@ -97,10 +97,12 @@ class JobStatus:
 class SlurmWrapper:
     def __init__(
         self,
-        clusters: List[str],
         config: Config,
+        clusters: List[str] | None = None,
     ):
         self.config = config
+        if clusters is None:
+            clusters = list(config.cluster_configs.keys())
         for cluster in clusters:
             assert cluster in self.config.cluster_configs, (
                 f"config not found for cluster {cluster}, "
@@ -129,7 +131,7 @@ class SlurmWrapper:
             res = self.connections[cluster_to_show].run("sfree", pty=True)
             print(res.stdout)
 
-    def schedule_job(self, job_info: JobCreationInfo) -> int:
+    def schedule_job(self, job_info: JobCreationInfo, dryrun: bool = False) -> int:
         # TODO support passing all arguments directly instead of intermediate object
         """
         remote location {slurmpilot_remote}/{jobname} stores:
@@ -138,7 +140,9 @@ class SlurmWrapper:
         * slurm_command.sh
         * possible artifacts written by script
         * source dir provided in job_info
-        :return: slurm job id
+        :param dryrun: whether to run a dry run mode which only sends the source remotely but does
+        not schedule the job on slurm
+        :return: slurm job id if not running in `dry_run` mode
         """
         job_info.check_path()
         cluster_connection = self.connections[job_info.cluster]
@@ -160,13 +164,15 @@ class SlurmWrapper:
         )
 
         # call sbatch remotely
-        jobid = self._call_sbatch_remotely(
-            cluster_connection, local_job_paths, remote_job_paths,
-            sbatch_env=job_info.env,
-        )
-        self.job_scheduling_callback.on_job_submitted_to_slurm(jobname=job_info.jobname, jobid=jobid)
-
-        return jobid
+        if not dryrun:
+            jobid = self._call_sbatch_remotely(
+                cluster_connection, local_job_paths, remote_job_paths,
+                sbatch_env=job_info.env,
+            )
+            self.job_scheduling_callback.on_job_submitted_to_slurm(jobname=job_info.jobname, jobid=jobid)
+            return jobid
+        else:
+            return None
 
     def stop_job(self, jobname: str):
         metadata = self.job_creation_metadata(jobname)
@@ -199,7 +205,7 @@ class SlurmWrapper:
                 text = (f"Waiting job to finish, current status {current_status} (updated every {wait_interval}s, "
                         f"waited for {int(time.time() - starttime)}s)")
                 live.renderable.update(text=Text(text, style="green"))
-                time.sleep(wait_interval)
+                time.sleep(wait_interval)  # todo exponential backoff to avoid QOS issues
                 i += 1
         return current_status
 

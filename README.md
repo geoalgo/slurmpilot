@@ -47,6 +47,15 @@ Mid-term:
 ## Tasks
 
 **TODOs**
+* tool to display logs/status from terminal
+  * (sp added by concatenating to path, suggestion made in setup.py)
+  * sp --help
+  * sp --log  # show last log
+  * sp --log job-name
+  * sp --status 10  # show status of last 10 jobs (list pulled from local files)
+  * sp --status job-name
+  * sp --sync job-name  # sync artifacts
+* when creating job, show command that can be copy-pasted to display log, status, sync artifact
 * subfolders
 * support setting local configs path via environment variables
 * stop all jobs
