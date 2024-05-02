@@ -13,7 +13,7 @@ from typing import NamedTuple, List
 from invoke import UnexpectedExit
 from paramiko.ssh_exception import AuthenticationException
 
-from callback.callback import SlurmSchedulerCallback
+from slurmpilot.callback.callback import SlurmSchedulerCallback
 from slurmpilot.config import Config, GeneralConfig
 from slurmpilot.jobpath import JobPathLogic
 from slurmpilot.remote_command import (
@@ -225,6 +225,8 @@ class SlurmWrapper:
         else:
             export_env = ""
         try:
+            # TODO import make those idempotent, running `sbatch slurm_script.sh` or `sbatch path_to_script/slurm_script.sh`
+            #  should work no matter the directory and variables should be saved for easier reproducibility
             res = cluster_connection.run(
                 f"cd {remote_job_path.job_path()}; mkdir -p logs/; sbatch {export_env} slurm_script.sh",
                 env={
@@ -380,7 +382,21 @@ class SlurmWrapper:
                 print_table(rows)
         return rows
 
-    def _download_logs(self, local_path, cluster: str, jobname: str) -> str:
+    def download_job(self, jobname: str | None = None):
+        if jobname is None:
+            jobname = self.latest_job()
+        cluster = self.cluster(jobname)
+        local_path = JobPathLogic(jobname=jobname)
+        remote_path = JobPathLogic.from_jobname(
+            jobname=jobname,
+            root_path=self.config.remote_slurmpilot_path(cluster),
+        )
+        self.connections[cluster].download_folder(
+            remote_path.resolve_path(),
+            local_path.root_path,
+        )
+
+    def _download_logs(self, local_path, cluster: str, jobname: str):
         # 1) download log from remote file
         # 2) show in console
         # we could also consider streaming

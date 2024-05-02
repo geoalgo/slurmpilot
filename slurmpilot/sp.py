@@ -23,6 +23,7 @@ if __name__ == '__main__':
     )
     parser.add_argument('job', help="Jobname to be queried, leave empty to use the last one", nargs='?')
     parser.add_argument('--log', help="Show log for the specified job", action=argparse.BooleanOptionalAction)
+    parser.add_argument('--download', help="Download data for the specified job", action=argparse.BooleanOptionalAction)
     parser.add_argument('--status', help="Show status for the specified job", action=argparse.BooleanOptionalAction)
     parser.add_argument('--sync', help="Retrieve job folder locally for the specified job", action=argparse.BooleanOptionalAction)
 
@@ -48,6 +49,9 @@ if __name__ == '__main__':
     if args.log:
         print(f"Displaying log for job {job}.")
         slurm.print_log(jobname=job)
+    if args.download:
+        print(f"Downloading job {job}.")
+        slurm.download_job(jobname=job)
     if args.status:
         print(f"Displaying status for job {job}.")
         print(slurm.status(jobname=job))

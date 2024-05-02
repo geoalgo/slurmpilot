@@ -1,4 +1,5 @@
 import logging
+import subprocess
 import tempfile
 from pathlib import Path
 from typing import NamedTuple, Optional
@@ -16,7 +17,7 @@ class CommandResult(NamedTuple):
 
 
 class RemoteExecution:
-    def __init__(self, master: str, proxy: Optional[str] = None):
+    def __init__(self, master: str, user: str | None = None, proxy: str | None = None):
         """
         Wraps functionality to run remote command and upload/download files and folders to a remote host possibly
         connected through a proxy.
@@ -27,6 +28,7 @@ class RemoteExecution:
         """
         self.master = master
         self.proxy = proxy
+        self.user = user
 
     def run(self, command: str, pty: bool = False, env: dict | None = None) -> CommandResult:
         raise NotImplementedError()
@@ -44,7 +46,7 @@ class RemoteExecution:
 class RemoteCommandExecutionFabrik(RemoteExecution):
     # TODO we could create a dependency free version with `getstatusoutput` that calls ssh command
     def __init__(self, master: str, user: str | None = None, proxy: str | None = None):
-        super().__init__(master=master, proxy=proxy)
+        super().__init__(master=master, proxy=proxy, user=user)
         from fabric import Connection
 
         self.connection = Connection(
@@ -108,6 +110,18 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
             remote=str(remote_path),
             local=str(local_path),
         )
+
+    def download_folder(self, remote_path: Path, local_path: Path):
+        """
+        :param remote_path:
+        :param local_path:
+        :return:
+        """
+        # Note, we could also tar the whole thing like we do to send, the reason we pick rsync is that often
+        # some files will only be present and rsync allows to not copy those based on hashes
+        logger.info(f"Running rsync from {remote_path} to {local_path}")
+        command = f"rsync -aPvz {self.user}@{self.master}:{remote_path} {local_path}"
+        subprocess.run(command.split(" "), check=True)
 
 
 if __name__ == "__main__":

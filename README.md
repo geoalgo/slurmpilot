@@ -28,41 +28,23 @@ On the remote host, the logs are written under `logs/stderr` and `logs/stdout` a
 **Writing common setup files.**
 Use SLURMPILOT_PATH, see XX as an example.
 
-## North star
-Support similar configs as skypilot, also 
-https://github.com/skypilot-org/skypilot/blob/master/examples/huggingface_glue_imdb_app.yaml
-
-e.g. would need to support:
-* sky launch cluster.yaml
-* sky status
-* sky down XXX
-* ssh XXX
-* sky queue XXX "ls"
-
-* evaluating from python from instance cmd="python run_glue.py --learning_rate=1e-3"
-Mid-term: 
-* support workspace/subfolder
-* example to run GLUE fine tuning
-
 ## Tasks
 
 **TODOs**
-* tool to display logs/status from terminal
-  * (sp added by concatenating to path, suggestion made in setup.py)
-  * sp --help
-  * sp --log  # show last log
-  * sp --log job-name
-  * sp --status 10  # show status of last 10 jobs (list pulled from local files)
-  * sp --status job-name
-  * sp --sync job-name  # sync artifacts
+* allow to pass variable to remote scripts
+* make sp installed in pip (add it to setup)
+* sp --sync job-name  / sync artefact of a job
 * when creating job, show command that can be copy-pasted to display log, status, sync artifact
+* remove logging info ssh
+* add interface for log querying and other functionalities
 * subfolders
 * support setting local configs path via environment variables
 * stop all jobs
-* allow to share common folders to avoid sending code lots of times?
-* sync artefact of a job
+* allow to share common folders to avoid sending code lots of times
+* lazy load connections of clusters
 
 **DONE**
+* tool to display logs/status from terminal
 * local configurations to allow clean repo, could be located in ~/slurmpilot/config
 * set environment variables
 * able to create jobs
@@ -80,3 +62,20 @@ Mid-term:
 * option to wait until complete or failed
 * stop job
 
+
+## North star / ideas
+Support similar configs as skypilot, also 
+https://github.com/skypilot-org/skypilot/blob/master/examples/huggingface_glue_imdb_app.yaml
+
+e.g. would need to support:
+* sky launch cluster.yaml
+* sky status
+* sky down XXX
+* ssh XXX
+* sky queue XXX "ls"
+
+* evaluating from python from instance cmd="python run_glue.py --learning_rate=1e-3"
+Mid-term: 
+* support workspace/subfolder
+* support diff experiment folders
+* support numerating suffix "-1", "-2" instead of random names
