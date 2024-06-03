@@ -32,6 +32,14 @@ class SlurmSchedulerCallback(SlurmSchedulerCallbackInterface):
 
     def on_job_submitted_to_slurm(self, jobid: int, jobname: str):
         print(self.format(f"Job submitted to Slurm with the following id {jobid} saving the jobid locally."))
+
+    def on_suggest_command_before_wait_completion(self, jobname: str):
+        log_cmd = f"* to show the log of your job: `slurmpilot --log {jobname}`"
+        sync_cmd = f"* to sync the artifact of your job: `slurmpilot --sync {jobname}`"
+        status_cmd = f"* to show the status of your job: `slurmpilot --status {jobname}`"
+        cmds = "\n".join([log_cmd, sync_cmd, status_cmd])
+        print(self.format(f"You can use the following commands in a terminal:\n{cmds}"))
+
     def on_waiting_completion(self, jobname: str, status: str, n_seconds_wait: int):
         # TODO dependency inversion to support rich
         return print(self.format(f"{jobname} status {status}, waiting {n_seconds_wait}s"))

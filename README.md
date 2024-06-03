@@ -1,15 +1,15 @@
-## Dev setup
+# Slurmpilot
 
+## Installing
+
+To install, run the following:
+```bash
+git clone ...
+pip install -e "."  
 ```
-pip install -e ".[dev]"  # TODO update with github
-pre-commit install 
-pre-commit autoupdate
-```
 
-## Scheduling a job
-
-### Adding a cluster
-First, you will need to add a cluster by specifying a configuration.
+## Adding a cluster
+Before you can schedule a job, you will need to add a cluster by specifying a configuration.
 
 You can specify a configuration by adding it to `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`, for instance a configuration could 
 be like this:
@@ -23,7 +23,35 @@ user: username2
 account: "AN_ACCOUNT"  
 ```
 
-Alternatively, you can specify configurations in `SLURMPILOT_SRC_DIR/config` where SLURMPILOT_SRC_DIR would replace
+## Scheduling a job
+TODO Add Hellocluster example in main repo.
+
+### Workflow
+When scheduling a job, the files required to run it are first copied to `~/slurmpilot/jobs/YOUR_JOB_NAME` and then
+send to the remote host to `~/slurmpilot/jobs/YOUR_JOB_NAME` (those defaults paths are modifiable).
+
+In particular, the following files are generated locally under `~/slurmpilot/jobs/YOUR_JOB_NAME`:
+* `metadata.json: contains metadata such as time and the configuration of the job that was scheduled
+* jobid.json: contains the slurm jobid obtained when scheduling the job, if this step was successful
+* slurm_script.sh: a slurm script automatically generated from your options that is executed on the remote node with sbatch
+* src_dir: the folder containing the entrypoint
+* ${src_dir}/entrypoint: the entrypoint to be executed
+
+On the remote host, the logs are written under `logs/stderr` and `logs/stdout` and the current working dir is also 
+`~/slurmpilot/jobs/YOUR_JOB_NAME` unless overwritten in `general.yaml` config (see `Other ways to specify configurations` section).
+
+## FAQ/misc
+
+*Developer setup.*
+If you want to develop features, run the following:
+```bash
+pip install -e ".[dev]"  # TODO update with github
+pre-commit install 
+pre-commit autoupdate
+```
+
+*Other ways to specify configurations.*
+You can also specify configurations in `SLURMPILOT_SRC_DIR/config` where SLURMPILOT_SRC_DIR would replace
 where the source code of slurmpilot is installed.
 In case multiple configurations can be defined, the configurations in `~/slurmpilot` will override the one defined 
 in `SLURMPILOT_SRC_DIR`.
@@ -38,40 +66,23 @@ local_path: "~/slurmpilot"
 remote_path: "slurmpilot/"
 ```
 
-### Workflow
-When scheduling a job, the files required to run it are first copied to `~/slurmpilot/your_job_name` and then
-send to the remote host to `~/slurmpilot/your_job_name` (those defaults paths are modifiable).
-
-In particular, the following files are generated locally under `~/slurmpilot/your_job_name`:
-* metadata.json: contains metadata such as time and the configuration of the job that was scheduled
-* jobid.json: contains the slurm jobid obtained when scheduling the job, if this step was successful
-* slurm_script.sh: a slurm script automatically generated from your options that is executed on the remote node with sbatch
-* src_dir: the folder containing the entrypoint
-* src_dir/entrypoint: the entrypoint to be executed
-
-On the remote host, the logs are written under `logs/stderr` and `logs/stdout` and the current working dir is `~/slurmpilot/your_job_name`.
-
-### Job file structure
-
-
-
 
 **TODOs**
-* test "jobs/" new folder structure
+* allow to fetch info from local folders in list_jobs
 * make script execution independent of cwd and dump variable to enforce reproducibility
 * allow to pass variable to remote scripts
 * sp --sync job-name  / sync artefact of a job
-* when creating job, show command that can be copy-pasted to display log, status, sync artifact
 * remove logging info ssh
-* add interface for log querying and other functionalities
 * subfolders
-* support setting local configs path via environment variables
 * stop all jobs
 * allow to share common folders to avoid sending code lots of times
 * lazy load connections of clusters
 * chain of jobs
 
 **DONE**
+* when creating job, show command that can be copy-pasted to display log, status, sync artifact
+* support setting local configs path via local files
+* test "jobs/" new folder structure
 * tool to display logs/status from terminal
 * make sp installed in pip (add it to setup)
 * local configurations to allow clean repo, could be located in ~/slurmpilot/config

@@ -1,7 +1,0 @@
-host: REPLACE_ME_WITH_YOUR_SLURM_HOSTNAME
-
-# path on the remote machine where to find slurmpilot
-remote_path: "slurmpilot/"
-
-# optional account to be used
-account:

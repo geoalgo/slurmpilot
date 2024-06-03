@@ -104,7 +104,7 @@ class SlurmWrapper:
         else:
             self.config = load_config()
         if clusters is None:
-            clusters = list(config.cluster_configs.keys())
+            clusters = list(self.config.cluster_configs.keys())
         for cluster in clusters:
             assert cluster in self.config.cluster_configs, (
                 f"config not found for cluster {cluster}, "
@@ -190,6 +190,7 @@ class SlurmWrapper:
         :param max_seconds: waits for the given number of seconds if defined else waits for status COMPLETED or FAILED
         :return: final status polled
         """
+        self.job_scheduling_callback.on_suggest_command_before_wait_completion(jobname=jobname)
         from rich.live import Live
         from rich.text import Text
         from rich.spinner import Spinner
@@ -339,7 +340,7 @@ class SlurmWrapper:
             print(f"stdout:\n{stdout}")
 
     def latest_job(self) -> str:
-        files = list(Path(self.config.local_slurmpilot_path()).expanduser().glob("*"))
+        files = list((self.config.local_slurmpilot_path() / "jobs").expanduser().glob("*"))
         if len(files) > 0:
             latest_file = max(
                 [f for f in files if f.is_dir()], key=lambda item: item.stat().st_ctime
@@ -366,7 +367,6 @@ class SlurmWrapper:
         :return: list of information from each job containing JobID,JobName%30,Partition,Elapsed,State%15
         fetched from slurm
         """
-        # TODO we may also want to fetch info from local folders
         rows = []
         for cluster in self.list_clusters(cluster):
             if sacct_format is None:
