@@ -13,7 +13,7 @@ from invoke import UnexpectedExit
 from paramiko.ssh_exception import AuthenticationException
 
 from slurmpilot.callback.callback import SlurmSchedulerCallback
-from slurmpilot.config import Config
+from slurmpilot.config import Config, load_config
 from slurmpilot.jobpath import JobPathLogic
 from slurmpilot.remote_command import (
     RemoteCommandExecutionFabrik,
@@ -96,10 +96,13 @@ class JobStatus:
 class SlurmWrapper:
     def __init__(
         self,
-        config: Config,
+        config: Config | None = None,
         clusters: List[str] | None = None,
     ):
-        self.config = config
+        if config is not None:
+            self.config = config
+        else:
+            self.config = load_config()
         if clusters is None:
             clusters = list(config.cluster_configs.keys())
         for cluster in clusters:

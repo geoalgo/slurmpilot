@@ -1,9 +1,14 @@
 import json
+import logging
 from pathlib import Path
 from typing import NamedTuple, Dict, List
 
 import yaml
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    format="%(asctime)s | %(levelname)s | %(message)s", level=logging.INFO
+)
 config_path = Path(__file__).parent.parent / "config"
 
 
@@ -27,7 +32,7 @@ class ClusterConfig(NamedTuple):
 
 class Config:
     def __init__(
-        self, general_config: GeneralConfig, cluster_configs: Dict[str, ClusterConfig] | None = None,
+        self, general_config: GeneralConfig | None = None, cluster_configs: Dict[str, ClusterConfig] | None = None,
     ):
         self.general_config = general_config
         self.cluster_configs = cluster_configs if cluster_configs is not None else {}
@@ -41,6 +46,19 @@ class Config:
             if clusters is None or cluster_config_path.stem in clusters
         }
         return cls(general_config, cluster_configs)
+
+    def save_to_path(self, path=config_path, clusters: List[str] | None = None):
+        path.mkdir(parents=True, exist_ok=True)
+        (path / "clusters").mkdir(parents=True, exist_ok=True)
+        if self.general_config:
+            with open(path / "general.yaml", "w") as f:
+                yaml.dump(self.general_config._asdict(), f)
+        if clusters is None:
+            clusters = self.cluster_configs.keys()
+        for cluster in clusters:
+            with open(path / "clusters" / f"{cluster}.yaml", "w") as f:
+                dict_without_none = {k: v for k, v in self.cluster_configs[cluster]._asdict().items() if v}
+                yaml.dump(dict_without_none, f)
 
     def __str__(self):
         res = {
@@ -67,10 +85,31 @@ def load_yaml(path: Path) -> dict:
 
 
 def load_cluster_config(path: Path) -> ClusterConfig:
-    return ClusterConfig(**load_yaml(path))
-
+    if path.exists():
+        return ClusterConfig(**load_yaml(path))
+    else:
+        return None
 
 def load_general_config(path: Path) -> GeneralConfig:
-    args = load_yaml(path)
-    args["local_path"] = str(Path(args["local_path"]).expanduser())
-    return GeneralConfig(**load_yaml(path))
+    if path.exists():
+        args = load_yaml(path)
+        args["local_path"] = str(Path(args["local_path"]).expanduser())
+        return GeneralConfig(**load_yaml(path))
+    else:
+        return None
+
+
+def load_config(code_path: Path | None = None, user_path: Path | None = None) -> Config:
+    # TODO check if duplicate exists, merge
+    if code_path is None:
+        code_path = Path(__file__).parent.parent / "config"
+    code_config = Config.load_from_path(code_path)
+
+    if user_path is None:
+        user_path = Path("~/slurmpilot/config").expanduser()
+    user_config = Config.load_from_path(user_path)
+    general_config = code_config.general_config if user_config.general_config is None else user_config.general_config
+    merge_config = dict(code_config.cluster_configs, **user_config.cluster_configs)
+    logger.info(f"Loaded cluster configurations {list(merge_config.keys())}.")
+    return Config(general_config=general_config, cluster_configs=merge_config)
+

@@ -7,6 +7,37 @@ pre-commit autoupdate
 ```
 
 ## Scheduling a job
+
+### Adding a cluster
+First, you will need to add a cluster by specifying a configuration.
+
+You can specify a configuration by adding it to `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`, for instance a configuration could 
+be like this:
+```yaml
+host: your-gpu-cluster.com
+# optional, specify the path where files will be written by slurmpilot on the remote machine, default to ~/slurmpilot
+remote_path: "/home/username2/foo/slurmpilot/"
+# optional, only specify if the user on the cluster is different than on your local machine
+user: username2  
+# optional, specify a slurm account if needed
+account: "AN_ACCOUNT"  
+```
+
+Alternatively, you can specify configurations in `SLURMPILOT_SRC_DIR/config` where SLURMPILOT_SRC_DIR would replace
+where the source code of slurmpilot is installed.
+In case multiple configurations can be defined, the configurations in `~/slurmpilot` will override the one defined 
+in `SLURMPILOT_SRC_DIR`.
+
+You can also specify global properties by writing `~/slurmpilot/general.yaml` (or `SLURMPILOT_SRC_DIR/general.yaml`)
+and edit the following:
+```
+# where files are written locally on your machine for job status, logs and artifacts
+local_path: "~/slurmpilot"  
+
+# default path where slurmpilot job files are generated on the remote machine, Note: "~" cannot be used
+remote_path: "slurmpilot/"
+```
+
 ### Workflow
 When scheduling a job, the files required to run it are first copied to `~/slurmpilot/your_job_name` and then
 send to the remote host to `~/slurmpilot/your_job_name` (those defaults paths are modifiable).
@@ -23,14 +54,10 @@ On the remote host, the logs are written under `logs/stderr` and `logs/stdout` a
 ### Job file structure
 
 
-## FAQ
 
-**Writing common setup files.**
-Use SLURMPILOT_PATH, see XX as an example.
-
-## Tasks
 
 **TODOs**
+* test "jobs/" new folder structure
 * make script execution independent of cwd and dump variable to enforce reproducibility
 * allow to pass variable to remote scripts
 * sp --sync job-name  / sync artefact of a job

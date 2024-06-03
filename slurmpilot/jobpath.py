@@ -42,9 +42,10 @@ class JobPathLogic:
 
     def resolve_path(self, path: Path | str | None = None) -> Path:
         if path is not None:
-            return Path(self.root_path) / self.jobname / path
+            return Path(self.root_path) / "jobs" / self.jobname / path
         else:
-            return Path(self.root_path) / self.jobname
+            return Path(self.root_path) / "jobs" / self.jobname
+
     def slurmpilot_path(self) -> Path:
         return Path(self.root_path)
 
