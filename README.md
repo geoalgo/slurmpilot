@@ -1,7 +1,7 @@
 ## Dev setup
 
 ```
-pip install -e ".[dev]"
+pip install -e ".[dev]"  # TODO update with github
 pre-commit install 
 pre-commit autoupdate
 ```
@@ -16,7 +16,7 @@ In particular, the following files are generated locally under `~/slurmpilot/you
 * jobid.json: contains the slurm jobid obtained when scheduling the job, if this step was successful
 * slurm_script.sh: a slurm script automatically generated from your options that is executed on the remote node with sbatch
 * src_dir: the folder containing the entrypoint
-* src_dir/entrypoing: the entrypoint to be executed
+* src_dir/entrypoint: the entrypoint to be executed
 
 On the remote host, the logs are written under `logs/stderr` and `logs/stdout` and the current working dir is `~/slurmpilot/your_job_name`.
 
@@ -31,8 +31,8 @@ Use SLURMPILOT_PATH, see XX as an example.
 ## Tasks
 
 **TODOs**
+* make script execution independent of cwd and dump variable to enforce reproducibility
 * allow to pass variable to remote scripts
-* make sp installed in pip (add it to setup)
 * sp --sync job-name  / sync artefact of a job
 * when creating job, show command that can be copy-pasted to display log, status, sync artifact
 * remove logging info ssh
@@ -42,9 +42,11 @@ Use SLURMPILOT_PATH, see XX as an example.
 * stop all jobs
 * allow to share common folders to avoid sending code lots of times
 * lazy load connections of clusters
+* chain of jobs
 
 **DONE**
 * tool to display logs/status from terminal
+* make sp installed in pip (add it to setup)
 * local configurations to allow clean repo, could be located in ~/slurmpilot/config
 * set environment variables
 * able to create jobs

@@ -7,14 +7,13 @@ import time
 from _socket import gaierror
 from datetime import datetime
 from pathlib import Path
-from socket import socket
 from typing import NamedTuple, List
 
 from invoke import UnexpectedExit
 from paramiko.ssh_exception import AuthenticationException
 
 from slurmpilot.callback.callback import SlurmSchedulerCallback
-from slurmpilot.config import Config, GeneralConfig
+from slurmpilot.config import Config
 from slurmpilot.jobpath import JobPathLogic
 from slurmpilot.remote_command import (
     RemoteCommandExecutionFabrik,

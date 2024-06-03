@@ -12,4 +12,9 @@ setup(
         "dev": ["pytest", "black", "pre-commit"],
         "extra": ["coolname"],
     },
+    entry_points={
+        "console_scripts": [
+            "slurmpilot=slurmpilot.cli:main",
+        ],
+    },
 )
