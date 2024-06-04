@@ -509,4 +509,4 @@ class SlurmWrapper:
             cluster=job_info.cluster,
         )
         with open(local_path.metadata_path(), "w") as f:
-            f.write(json.dumps(metadata.__dict__))
+            f.write(metadata.to_json())
