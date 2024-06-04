@@ -68,18 +68,18 @@ remote_path: "slurmpilot/"
 
 
 **TODOs**
-* allow to fetch info from local folders in list_jobs
-* make script execution independent of cwd and dump variable to enforce reproducibility
-* allow to pass variable to remote scripts
-* sp --sync job-name  / sync artefact of a job
-* remove logging info ssh
-* subfolders
-* stop all jobs
-* allow to share common folders to avoid sending code lots of times
-* lazy load connections of clusters
-* chain of jobs
+* high: add example in main repo
+* high: sp --sync job-name  / sync artefact of a job
+* medium: make script execution independent of cwd and dump variable to enforce reproducibility
+* medium: allow to pass variable to remote scripts
+* medium/low: subfolders
+* medium: stop all jobs
+* low: remove logging info ssh
+* low: allow to share common folders to avoid sending code lots of times, probably do a doc example
+* TBD: chain of jobs
 
 **DONE**
+* high: allow to fetch info from local folders in list_jobs
 * when creating job, show command that can be copy-pasted to display log, status, sync artifact
 * support setting local configs path via local files
 * test "jobs/" new folder structure

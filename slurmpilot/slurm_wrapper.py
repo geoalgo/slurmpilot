@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import logging
 import os
@@ -5,6 +6,7 @@ import re
 import shutil
 import time
 from _socket import gaierror
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import NamedTuple, List
@@ -27,7 +29,8 @@ logging.basicConfig(
 )
 
 
-class JobCreationInfo(NamedTuple):
+@dataclass
+class JobCreationInfo:
     jobname: str
     entrypoint: str = None
     src_dir: str = None
@@ -42,7 +45,7 @@ class JobCreationInfo(NamedTuple):
     mem: int = None  # memory pool for each core in MB
     max_runtime_minutes: int = 60  # max runtime in minutes
     account: str = None
-    env: dict = dict()
+    env: dict = None
 
     def check_path(self):
         assert Path(
@@ -91,6 +94,34 @@ class JobStatus:
 
     def statuses(self):
         return [self.completed, self.pending, self.failed, self.running, self.cancelled]
+
+
+@dataclass
+class JobMetadata:
+    user: str
+    date: str
+    job_creation_info: JobCreationInfo
+    cluster: str
+
+    def to_json(self) -> str:
+        # The methods `to_json` and `from_json` are there because we have nested dataclasses which makes JobMetadata
+        # not directly Json serializable
+        class EnhancedJSONEncoder(json.JSONEncoder):
+            def default(self, o):
+                if dataclasses.is_dataclass(o):
+                    return dataclasses.asdict(o)
+                return super().default(o)
+        return json.dumps(self, cls=EnhancedJSONEncoder)
+
+    @classmethod
+    def from_json(cls, string) -> "JobMetadata":
+        dict_from_string = json.loads(string)
+        dict_from_string["job_creation_info"] = JobCreationInfo(**dict_from_string["job_creation_info"])
+        return JobMetadata(
+            **dict_from_string,
+
+        )
+
 
 
 class SlurmWrapper:
@@ -169,7 +200,7 @@ class SlurmWrapper:
         if not dryrun:
             jobid = self._call_sbatch_remotely(
                 cluster_connection, local_job_paths, remote_job_paths,
-                sbatch_env=job_info.env,
+                sbatch_env=job_info.env if job_info.env else {},
             )
             self.job_scheduling_callback.on_job_submitted_to_slurm(jobname=job_info.jobname, jobid=jobid)
             return jobid
@@ -357,15 +388,27 @@ class SlurmWrapper:
         job_metadata = self.job_creation_metadata(jobname=jobname)
         return job_metadata["cluster"]
 
-    def list_jobs(
+    def list_jobs(self) -> List[JobMetadata]:
+        files = list((self.config.local_slurmpilot_path() / "jobs").expanduser().glob("*"))
+        rows = []
+        for file in files:
+            if not file.is_file() and (file / "metadata.json").exists():
+                print(file)
+                with open(file / "metadata.json", "r") as f:
+                    try:
+                        rows.append(JobMetadata.from_json(f.readline()))
+                    except json.decoder.JSONDecodeError:
+                        pass
+        return rows
+
+    def list_jobs_slurm(
         self,
         cluster: str | None = None,
         print_list: bool = True,
         sacct_format: str | None = None,
     ) -> List[dict]:
         """
-        :return: list of information from each job containing JobID,JobName%30,Partition,Elapsed,State%15
-        fetched from slurm
+        :return: fetch information from Slurm for each job containing JobID,JobName%30,Partition,Elapsed,State%15
         """
         rows = []
         for cluster in self.list_clusters(cluster):
@@ -459,12 +502,11 @@ class SlurmWrapper:
             return json.load(f)
 
     def _generate_metadata(self, local_path: JobPathLogic, job_info: JobCreationInfo):
-        # TODO use namedtuple class
-        metadata = {
-            "USER": os.getenv("USER"),
-            "date": str(datetime.now()),
-            "job_creation_info": job_info._asdict(),
-            "cluster": job_info.cluster,
-        }
+        metadata = JobMetadata(
+            user=os.getenv("USER"),
+            date=str(datetime.now()),
+            job_creation_info=job_info,
+            cluster=job_info.cluster,
+        )
         with open(local_path.metadata_path(), "w") as f:
-            f.write(json.dumps(metadata))
+            f.write(json.dumps(metadata.__dict__))
