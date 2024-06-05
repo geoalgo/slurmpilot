@@ -146,7 +146,7 @@ class SlurmWrapper:
         self.connections = {}
         for cluster, config in self.config.cluster_configs.items():
             if cluster in clusters:
-                self.connections[cluster] = RemoteCommandExecutionFabrik(master=config.host, user=config.user)
+                self.connections[cluster] = RemoteCommandExecutionFabrik(master=config.host, user=config.user if config.user else os.getenv("USER"))
                 try:
                     logger.debug(f"Try sending command to {cluster}.")
                     self.job_scheduling_callback.on_establishing_connection(cluster=cluster)
@@ -438,7 +438,7 @@ class SlurmWrapper:
         )
         self.connections[cluster].download_folder(
             remote_path.resolve_path(),
-            local_path.root_path,
+            local_path.resolve_path(),
         )
 
     def _download_logs(self, local_path, cluster: str, jobname: str):

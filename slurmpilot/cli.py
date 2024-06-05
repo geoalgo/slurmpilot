@@ -11,6 +11,8 @@
 """
 
 import argparse
+
+from slurmpilot.config import load_config
 from slurmpilot.slurm_wrapper import SlurmWrapper
 
 def jobname_from_cli_args_or_take_latest(slurm, args):
