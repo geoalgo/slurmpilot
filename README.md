@@ -66,8 +66,8 @@ local_path: "~/slurmpilot"
 remote_path: "slurmpilot/"
 ```
 
-
 **TODOs**
+* high: push in github add unit test actions
 * high: add example in main repo
 * high: sp --sync job-name  / sync artefact of a job
 * medium: make script execution independent of cwd and dump variable to enforce reproducibility
