@@ -46,8 +46,6 @@ On the remote host, the logs are written under `logs/stderr` and `logs/stdout` a
 If you want to develop features, run the following:
 ```bash
 pip install -e ".[dev]"  # TODO update with github
-pre-commit install 
-pre-commit autoupdate
 ```
 
 *Other ways to specify configurations.*
@@ -77,6 +75,7 @@ remote_path: "slurmpilot/"
 * low: remove logging info ssh
 * low: allow to share common folders to avoid sending code lots of times, probably do a doc example
 * TBD: chain of jobs
+* allow to submit list of jobs until all executed
 
 **DONE**
 * high: allow to fetch info from local folders in list_jobs

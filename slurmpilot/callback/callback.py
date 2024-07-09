@@ -1,4 +1,7 @@
+import pprint
 import time
+
+from slurmpilot.config import Config
 
 
 class SlurmSchedulerCallbackInterface:
@@ -42,7 +45,13 @@ class SlurmSchedulerCallback(SlurmSchedulerCallbackInterface):
 
     def on_waiting_completion(self, jobname: str, status: str, n_seconds_wait: int):
         # TODO dependency inversion to support rich
-        return print(self.format(f"{jobname} status {status}, waiting {n_seconds_wait}s"))
+        print(self.format(f"{jobname} status {status}, waiting {n_seconds_wait}s"))
+
+    def on_config_loaded(self, config: Config):
+        print(self.format(f"Cluster configurations loaded:"))
+        for cluster, cluster_config in config.cluster_configs.items():
+            print(self.format(cluster_config))
+
 
 if __name__ == '__main__':
 

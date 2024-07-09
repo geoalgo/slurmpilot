@@ -1,5 +1,6 @@
 import json
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple, Dict, List
 
@@ -22,7 +23,8 @@ class GeneralConfig(NamedTuple):
     remote_path: str
 
 
-class ClusterConfig(NamedTuple):
+@dataclass
+class ClusterConfig:
     # Configuration for a cluster, can override default in GeneralConfig
     host: str
     remote_path: str

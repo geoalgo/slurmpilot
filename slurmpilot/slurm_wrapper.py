@@ -143,14 +143,20 @@ class SlurmWrapper:
             )
         self.clusters = clusters
         self.job_scheduling_callback = SlurmSchedulerCallback()
+
+        self.job_scheduling_callback.on_config_loaded(self.config)
         self.connections = {}
+
+        # dictionary from cluster name to home dir
+        self.home_dir = {}
         for cluster, config in self.config.cluster_configs.items():
             if cluster in clusters:
                 self.connections[cluster] = RemoteCommandExecutionFabrik(master=config.host, user=config.user if config.user else os.getenv("USER"))
                 try:
                     logger.debug(f"Try sending command to {cluster}.")
                     self.job_scheduling_callback.on_establishing_connection(cluster=cluster)
-                    self.connections[cluster].run("ls")
+                    home_res = self.connections[cluster].run("echo $HOME")
+                    self.home_dir[cluster] = Path(home_res.stdout.strip("\n"))
                 except (gaierror, AuthenticationException) as e:
                     raise ValueError(f"Cannot connect to cluster {cluster}. Verify your ssh access.")
 
@@ -179,12 +185,14 @@ class SlurmWrapper:
         """
         job_info.check_path()
         cluster_connection = self.connections[job_info.cluster]
+        home_dir = self.home_dir[job_info.cluster]
         self.job_scheduling_callback.on_job_scheduled_start(cluster=job_info.cluster, jobname=job_info.jobname)
+
         # generate slurm launcher script in slurmpilot dir
         local_job_paths = self._generate_local_folder(job_info)
 
         # tar and send slurmpilot dir
-        remote_job_paths = self.remote_path(job_info)
+        remote_job_paths = self.remote_path(job_info, root_path=str(home_dir / "slurmpilot"))  # TODO clean this
         self.job_scheduling_callback.on_sending_artifact(
             localpath=str(local_job_paths.resolve_path()),
             remotepath=str(remote_job_paths.resolve_path()),
@@ -259,17 +267,16 @@ class SlurmWrapper:
         else:
             export_env = ""
         try:
-            # TODO import make those idempotent, running `sbatch slurm_script.sh` or `sbatch path_to_script/slurm_script.sh`
+            # TODO make those idempotent,
+            #  running `sbatch slurm_script.sh` or `sbatch path_to_script/slurm_script.sh`
             #  should work no matter the directory and variables should be saved for easier reproducibility
             res = cluster_connection.run(
                 f"cd {remote_job_path.job_path()}; mkdir -p logs/; sbatch {export_env} slurm_script.sh",
                 env={
-                    # "SLURMPILOT_PATH": remote_job_path.slurmpilot_path(),
-                    # TODO FIXME HIGH priority
-                    #  1) consider evaluating a path on remote to fix the issue
-                    "SLURMPILOT_PATH": "/p/home/jusers/salinas2/juwels/salinas2/slurmpilot",
+                    "SLURMPILOT_PATH": remote_job_path.slurmpilot_path(),
                     "SLURMPILOT_JOBPATH": remote_job_path.resolve_path(),
-                }
+                },
+                retries=3,
             )
         except UnexpectedExit as e:
             raise ValueError("Could not execute sbatch on the remote host, error:" + str(e))
@@ -298,12 +305,12 @@ class SlurmWrapper:
                     f"Job scheduled without error but could not parse slurm output: {stdout}"
                 )
 
-    def remote_path(self, job_info: JobCreationInfo):
+    def remote_path(self, job_info: JobCreationInfo, root_path : str | None = None):
         return JobPathLogic(
             jobname=job_info.jobname,
             entrypoint=job_info.entrypoint,
             src_dir_name=Path(job_info.src_dir).name if job_info.src_dir else None,
-            root_path=self.config.remote_slurmpilot_path(job_info.cluster),
+            root_path=root_path if root_path else self.config.remote_slurmpilot_path(job_info.cluster),
         )
 
     def _generate_local_folder(self, job_info: JobCreationInfo):
@@ -464,7 +471,8 @@ class SlurmWrapper:
         cluster = self.job_creation_metadata(jobname)["cluster"]
         jobid = self.jobid_from_jobname(jobname)
         res = self.connections[cluster].run(
-            f"sacct --jobs={jobid} --format=State -X -p"
+            f"sacct --jobs={jobid} --format=State -X -p",
+            retries=3
         )
         stdout = res.stdout
         # TODO a bit fragile

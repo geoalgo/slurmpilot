@@ -1,9 +1,12 @@
 import logging
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 from typing import NamedTuple, Optional
 import tarfile
+
+import paramiko
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +33,7 @@ class RemoteExecution:
         self.proxy = proxy
         self.user = user
 
-    def run(self, command: str, pty: bool = False, env: dict | None = None) -> CommandResult:
+    def run(self, command: str, pty: bool = False, env: dict | None = None, retries: int = 0) -> CommandResult:
         raise NotImplementedError()
 
     def upload_file(self, local_path: Path, remote_path: Path = Path("/")):
@@ -52,21 +55,35 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
         self.connection = Connection(
             self.master,
             user=user,
-            gateway=None if not proxy else Connection(proxy)
+            gateway=None if not proxy else Connection(proxy),
         )
 
-    def run(self, command: str, pty: bool = False, env: dict | None = None) -> CommandResult:
-        fabric_result = self.connection.run(command=command, hide=True, pty=pty, env=env)
-        # TODO show error when failed
-        if fabric_result.failed:
-            logging.info(f"Command {command} failed\n{fabric_result.stderr}")
-        return CommandResult(
-            command=command,
-            failed=fabric_result.failed,
-            return_code=fabric_result.return_code,
-            stderr=fabric_result.stderr,
-            stdout=fabric_result.stdout,
-        )
+    def run(self, command: str, pty: bool = False, env: dict | None = None, retries: int = 0) -> CommandResult:
+        success = False
+        num_trial = 1 + retries
+        while not success and num_trial > 0:
+            try:
+                fabric_result = self.connection.run(command=command, hide=True, pty=pty, env=env)
+                success = not fabric_result.failed
+                # TODO show error when failed
+                if fabric_result.failed:
+                    logging.info(f"Command {command} failed\n{fabric_result.stderr}")
+            except paramiko.ssh_exception.ChannelException as e:
+                logging.info(f"Command {command} failed because of connection issue {str(e)}")
+                continue
+            if not success:
+                time.sleep(1)
+                num_trial -= 1
+        if success:
+            return CommandResult(
+                command=command,
+                failed=fabric_result.failed,
+                return_code=fabric_result.return_code,
+                stderr=fabric_result.stderr,
+                stdout=fabric_result.stdout,
+            )
+        else:
+            raise ValueError(f"Command {command} did not succeed after {retries} trial, consider increasing `retries` argument.")
 
     def upload_file(self, local_path: Path, remote_path: Path = Path("/")):
         # TODO consider using rsync which is supported in Fabric,
