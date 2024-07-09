@@ -67,9 +67,9 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
                 success = not fabric_result.failed
                 # TODO show error when failed
                 if fabric_result.failed:
-                    logging.info(f"Command {command} failed\n{fabric_result.stderr}")
+                    logging.debug(f"Command {command} failed\n{fabric_result.stderr}")
             except paramiko.ssh_exception.ChannelException as e:
-                logging.info(f"Command {command} failed because of connection issue {str(e)}")
+                logging.debug(f"Command {command} failed because of connection issue {str(e)}")
                 continue
             if not success:
                 time.sleep(1)
