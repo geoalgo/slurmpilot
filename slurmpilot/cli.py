@@ -19,7 +19,7 @@ def jobname_from_cli_args_or_take_latest(slurm, args):
     if args.job:
         job = args.job
     else:
-        job = slurm.latest_job()
+        job = slurm.latest_job(slurm.config)
         print(f"No jobs specified, retrieved the latest one: {job}")
     return job
 
@@ -32,17 +32,16 @@ def main():
     # TODO list all local jobs and all remote jobs
     parser.add_argument('job', help="Jobname to be queried, leave empty to use the last one", nargs='?')
     parser.add_argument('--log', help="Show log for the specified job", action=argparse.BooleanOptionalAction)
+    parser.add_argument('--stop', help="Stop the specified job", action=argparse.BooleanOptionalAction)
     parser.add_argument('--download', help="Download data for the specified job", action=argparse.BooleanOptionalAction)
     parser.add_argument('--status', help="Show status for the specified job", action=argparse.BooleanOptionalAction)
     parser.add_argument('--sync', help="Retrieve job folder locally for the specified job",
                         action=argparse.BooleanOptionalAction)
     parser.add_argument('--test-ssh-connections', help="Test ssh connections", action=argparse.BooleanOptionalAction)
 
-
     args = parser.parse_args()
 
-
-    is_command_requiring_jobname = any([args.log, args.download, args.status, args.sync])
+    is_command_requiring_jobname = any([args.log, args.download, args.status, args.sync, args.stop])
     if not is_command_requiring_jobname and not args.test_ssh_connections:
         print("No action specifed, run slurmpilot YOURJOB --log to display the log, or use --status, --sync for other actions.")
 
@@ -62,6 +61,9 @@ def main():
         if args.sync:
             print(f"Pulling folder locally for job {job}.")
             raise NotImplementedError("TODO implement me.")
+        if args.stop:
+            print(f"Stopping job {job}.")
+            slurm.stop_job(jobname=job)
     else:
         if args.test_ssh_connections:
             slurm = SlurmWrapper(config=load_config())

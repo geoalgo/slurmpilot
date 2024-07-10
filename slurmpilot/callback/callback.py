@@ -40,7 +40,8 @@ class SlurmSchedulerCallback(SlurmSchedulerCallbackInterface):
         log_cmd = f"* to show the log of your job: `slurmpilot --log {jobname}`"
         sync_cmd = f"* to sync the artifact of your job: `slurmpilot --sync {jobname}`"
         status_cmd = f"* to show the status of your job: `slurmpilot --status {jobname}`"
-        cmds = "\n".join([log_cmd, sync_cmd, status_cmd])
+        stop_cmd = f"* to stop your job: `slurmpilot --stop {jobname}`"
+        cmds = "\n".join([log_cmd, sync_cmd, status_cmd, stop_cmd])
         print(self.format(f"You can use the following commands in a terminal:\n{cmds}"))
 
     def on_waiting_completion(self, jobname: str, status: str, n_seconds_wait: int):

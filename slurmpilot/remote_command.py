@@ -58,7 +58,7 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
             gateway=None if not proxy else Connection(proxy),
         )
 
-    def run(self, command: str, pty: bool = False, env: dict | None = None, retries: int = 0) -> CommandResult:
+    def run(self, command: str, pty: bool = False, env: dict | None = None, retries: int = 0, log_error: bool = True) -> CommandResult:
         success = False
         num_trial = 1 + retries
         while not success and num_trial > 0:
@@ -67,9 +67,11 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
                 success = not fabric_result.failed
                 # TODO show error when failed
                 if fabric_result.failed:
-                    logging.debug(f"Command {command} failed\n{fabric_result.stderr}")
+                    if log_error:
+                        logging.debug(f"Command {command} failed\n{fabric_result.stderr}")
             except paramiko.ssh_exception.ChannelException as e:
-                logging.debug(f"Command {command} failed because of connection issue {str(e)}")
+                if log_error:
+                    logging.debug(f"Command {command} failed because of connection issue {str(e)}")
                 continue
             if not success:
                 time.sleep(1)

@@ -59,7 +59,7 @@ class Config:
             clusters = self.cluster_configs.keys()
         for cluster in clusters:
             with open(path / "clusters" / f"{cluster}.yaml", "w") as f:
-                dict_without_none = {k: v for k, v in self.cluster_configs[cluster]._asdict().items() if v}
+                dict_without_none = {k: v for k, v in self.cluster_configs[cluster].__dict__.items() if v}
                 yaml.dump(dict_without_none, f)
 
     def __str__(self):

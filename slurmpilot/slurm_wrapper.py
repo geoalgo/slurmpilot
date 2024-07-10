@@ -368,7 +368,7 @@ class SlurmWrapper:
         :return: print log of specified job
         """
         if jobname is None:
-            jobname = self.latest_job()
+            jobname = self.latest_job(self.config)
             print(f"No jobname was passed, showing log of latest job {jobname}")
         cluster = self.cluster(jobname)
         stderr, stdout = self.log(jobname=jobname, cluster=cluster)
@@ -377,15 +377,16 @@ class SlurmWrapper:
         if stdout:
             print(f"stdout:\n{stdout}")
 
-    def latest_job(self) -> str:
-        files = list((self.config.local_slurmpilot_path() / "jobs").expanduser().glob("*"))
+    @staticmethod
+    def latest_job(config) -> str:
+        files = list((config.local_slurmpilot_path() / "jobs").expanduser().glob("*"))
         if len(files) > 0:
             latest_file = max(
                 [f for f in files if f.is_dir()], key=lambda item: item.stat().st_ctime
             )
             jobname = Path(latest_file).name
             return jobname
-        raise ValueError(f"No job was found at {self.config.local_slurmpilot_path()}")
+        raise ValueError(f"No job was found at {config.local_slurmpilot_path()}")
 
     def cluster(self, jobname: str):
         """
@@ -436,7 +437,7 @@ class SlurmWrapper:
 
     def download_job(self, jobname: str | None = None):
         if jobname is None:
-            jobname = self.latest_job()
+            jobname = self.latest_job(self.config)
         cluster = self.cluster(jobname)
         local_path = JobPathLogic(jobname=jobname)
         remote_path = JobPathLogic.from_jobname(
@@ -472,7 +473,8 @@ class SlurmWrapper:
         jobid = self.jobid_from_jobname(jobname)
         res = self.connections[cluster].run(
             f"sacct --jobs={jobid} --format=State -X -p",
-            retries=3
+            retries=3,
+            log_error=False,
         )
         stdout = res.stdout
         # TODO a bit fragile
