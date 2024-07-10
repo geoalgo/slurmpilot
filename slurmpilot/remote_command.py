@@ -45,6 +45,9 @@ class RemoteExecution:
     def download_file(self, remote_path: Path, local_path: Path):
         raise NotImplementedError()
 
+    def download_folder(self, remote_path: Path, local_path: Path):
+        raise NotImplementedError()
+
 
 class RemoteCommandExecutionFabrik(RemoteExecution):
     # TODO we could create a dependency free version with `getstatusoutput` that calls ssh command

@@ -35,7 +35,7 @@ class JobCreationInfo:
     entrypoint: str = None
     src_dir: str = None
     # TODO
-    # dependencies: List[str] = []
+    python_libraries: List[str] | None = None
 
     # ressources
     cluster: str = None
@@ -323,9 +323,12 @@ class SlurmWrapper:
         assert (
             not local_job_paths.job_path().exists()
         ), f"jobname {job_info.jobname} has already been used, jobnames must be unique please use another one"
-
         # copy source, generate main slurm script and metadata
+        # TODO, option to keep only python files
         shutil.copytree(src=job_info.src_dir, dst=local_job_paths.src_path())
+        for python_library in job_info.python_libraries:
+            assert Path(python_library).exists(), f"Python library specified {python_library} does not exists."
+            shutil.copytree(src=python_library, dst=local_job_paths.resolve_path(Path(python_library).name))
         self._generate_main_slurm_script(local_job_paths, job_info)
         self._generate_metadata(local_job_paths, job_info)
         return local_job_paths
