@@ -65,9 +65,11 @@ remote_path: "slurmpilot/"
 ```
 
 **TODOs**
+* high: handle python dependencies
 * high: add example in main repo
-* high: push in github add unit test actions
+* high: add unit test actions
 * high: sp --sync job-name  / sync artefact of a job
+* medium: dont make ssh connection to every cluster in cli, requires small refactor to avoid needing SlurmWrapper to get last jobname
 * medium: make script execution independent of cwd and dump variable to enforce reproducibility
 * medium: allow to pass variable to remote scripts
 * medium/low: subfolders
@@ -78,6 +80,8 @@ remote_path: "slurmpilot/"
 * allow to submit list of jobs until all executed
 
 **DONE**
+* medium: add option to stop in the CLI 
+* high: push in github 
 * high: allow to fetch info from local folders in list_jobs
 * when creating job, show command that can be copy-pasted to display log, status, sync artifact
 * support setting local configs path via local files
