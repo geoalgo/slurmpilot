@@ -69,7 +69,7 @@ remote_path: "slurmpilot/"
 * high: explain examples in readme
 * high: add unit test actions
 * high: sp --sync job-name  / sync artefact of a job
-* medium: allow to copy only python files (or as skypilot keep only files not in .gitignore)
+* medium: allow to copy only python files (or as skypilot keep only files .gitignore)
 * medium: dont make ssh connection to every cluster in cli, requires small refactor to avoid needing SlurmWrapper to get last jobname
 * medium: make script execution independent of cwd and dump variable to enforce reproducibility
 * medium: allow to pass variable to remote scripts, right now only env variable can be used

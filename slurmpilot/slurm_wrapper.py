@@ -339,6 +339,11 @@ class SlurmWrapper:
         with open(local_job_paths.slurm_entrypoint_path(), "w") as f:
             f.write("#!/bin/bash\n")
             f.write(job_info.sbatch_preamble())
+            # Add path containing the library to the PYTHONPATH so that they can be imported without requiring
+            # the user to add `PYTHONPATH=.` before running scripts, e.g. instead of having to do
+            # `PYTHONPATH=. python main.py`, users can simply do `python main.py`
+            if job_info.python_libraries:
+                f.write(f"export PYTHONPATH=$PYTHONPATH:{local_job_paths.resolve_path()}\n")
             f.write(f"bash {local_job_paths.entrypoint_path_from_cwd()}\n")
 
     def _save_jobid(self, local_job_paths: JobPathLogic, jobid: int):
