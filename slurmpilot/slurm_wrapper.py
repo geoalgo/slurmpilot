@@ -9,7 +9,7 @@ from _socket import gaierror
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import NamedTuple, List
+from typing import NamedTuple, List, Tuple
 
 from invoke import UnexpectedExit
 from paramiko.ssh_exception import AuthenticationException
@@ -103,6 +103,10 @@ class JobMetadata:
     job_creation_info: JobCreationInfo
     cluster: str
 
+    @property
+    def jobname(self):
+        return self.job_creation_info.jobname
+
     def to_json(self) -> str:
         # The methods `to_json` and `from_json` are there because we have nested dataclasses which makes JobMetadata
         # not directly Json serializable
@@ -119,7 +123,6 @@ class JobMetadata:
         dict_from_string["job_creation_info"] = JobCreationInfo(**dict_from_string["job_creation_info"])
         return JobMetadata(
             **dict_from_string,
-
         )
 
 
@@ -218,7 +221,7 @@ class SlurmWrapper:
     def stop_job(self, jobname: str):
         metadata = self.job_creation_metadata(jobname)
         jobid = self.jobid_from_jobname(jobname)
-        self.connections[metadata["cluster"]].run(f"scancel {jobid}")
+        self.connections[metadata.cluster].run(f"scancel {jobid}")
 
     def wait_completion(
         self,
@@ -326,9 +329,10 @@ class SlurmWrapper:
         # copy source, generate main slurm script and metadata
         # TODO, option to keep only python files
         shutil.copytree(src=job_info.src_dir, dst=local_job_paths.src_path())
-        for python_library in job_info.python_libraries:
-            assert Path(python_library).exists(), f"Python library specified {python_library} does not exists."
-            shutil.copytree(src=python_library, dst=local_job_paths.resolve_path(Path(python_library).name))
+        if job_info.python_libraries:
+            for python_library in job_info.python_libraries:
+                assert Path(python_library).exists(), f"Python library specified {python_library} does not exists."
+                shutil.copytree(src=python_library, dst=local_job_paths.resolve_path(Path(python_library).name))
         self._generate_main_slurm_script(local_job_paths, job_info)
         self._generate_metadata(local_job_paths, job_info)
         return local_job_paths
@@ -376,7 +380,7 @@ class SlurmWrapper:
         :return: print log of specified job
         """
         if jobname is None:
-            jobname = self.latest_job(self.config)
+            jobname = self.latest_job(self.config).jobname
             print(f"No jobname was passed, showing log of latest job {jobname}")
         cluster = self.cluster(jobname)
         stderr, stdout = self.log(jobname=jobname, cluster=cluster)
@@ -386,14 +390,16 @@ class SlurmWrapper:
             print(f"stdout:\n{stdout}")
 
     @staticmethod
-    def latest_job(config) -> str:
+    def latest_job(config: Config | None = None) -> JobMetadata:
+        if config is None:
+            config = load_config()
         files = list((config.local_slurmpilot_path() / "jobs").expanduser().glob("*"))
         if len(files) > 0:
             latest_file = max(
                 [f for f in files if f.is_dir()], key=lambda item: item.stat().st_ctime
             )
             jobname = Path(latest_file).name
-            return jobname
+            return SlurmWrapper.job_creation_metadata(jobname)
         raise ValueError(f"No job was found at {config.local_slurmpilot_path()}")
 
     def cluster(self, jobname: str):
@@ -402,7 +408,7 @@ class SlurmWrapper:
         :return: retrieves the cluster where `jobname` was launched by querying local files
         """
         job_metadata = self.job_creation_metadata(jobname=jobname)
-        return job_metadata["cluster"]
+        return job_metadata.cluster
 
     def list_jobs(self) -> List[JobMetadata]:
         files = list((self.config.local_slurmpilot_path() / "jobs").expanduser().glob("*"))
@@ -445,7 +451,7 @@ class SlurmWrapper:
 
     def download_job(self, jobname: str | None = None):
         if jobname is None:
-            jobname = self.latest_job(self.config)
+            jobname = self.latest_job(self.config).jobname
         cluster = self.cluster(jobname)
         local_path = JobPathLogic(jobname=jobname)
         remote_path = JobPathLogic.from_jobname(
@@ -514,10 +520,11 @@ class SlurmWrapper:
         with open(local_path.jobid_path(), "r") as f:
             return json.load(f)["jobid"]
 
-    def job_creation_metadata(self, jobname: str) -> dict:
+    @staticmethod
+    def job_creation_metadata(jobname: str) -> JobMetadata:
         local_path = JobPathLogic(jobname=jobname)
         with open(local_path.metadata_path(), "r") as f:
-            return json.load(f)
+            return JobMetadata.from_json(f.read())
 
     def _generate_metadata(self, local_path: JobPathLogic, job_info: JobCreationInfo):
         metadata = JobMetadata(

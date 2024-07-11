@@ -15,13 +15,13 @@ import argparse
 from slurmpilot.config import load_config
 from slurmpilot.slurm_wrapper import SlurmWrapper
 
-def jobname_from_cli_args_or_take_latest(slurm, args):
+def jobname_from_cli_args_or_take_latest(args):
     if args.job:
-        job = args.job
+        return SlurmWrapper.job_creation_metadata(args.job)
     else:
-        job = slurm.latest_job(slurm.config)
-        print(f"No jobs specified, retrieved the latest one: {job}")
-    return job
+        job_metadata = SlurmWrapper.latest_job()
+        print(f"No jobs specified, retrieved the latest one: {job_metadata.jobname}")
+    return job_metadata
 
 def main():
     parser = argparse.ArgumentParser(
@@ -46,18 +46,18 @@ def main():
         print("No action specifed, run slurmpilot YOURJOB --log to display the log, or use --status, --sync for other actions.")
 
     if is_command_requiring_jobname:
-        slurm = SlurmWrapper()
-        job = jobname_from_cli_args_or_take_latest(slurm, args)
+        job = jobname_from_cli_args_or_take_latest(args)
+        slurm = SlurmWrapper(clusters=[job.cluster])
         # TODO use match
         if args.log:
             print(f"Displaying log for job {job}.")
-            slurm.print_log(jobname=job)
+            slurm.print_log(jobname=job.jobname)
         if args.download:
             print(f"Downloading job {job}.")
-            slurm.download_job(jobname=job)
+            slurm.download_job(jobname=job.jobname)
         if args.status:
             print(f"Displaying status for job {job}.")
-            print(slurm.status(jobname=job))
+            print(slurm.status(jobname=job.jobname))
         if args.sync:
             print(f"Pulling folder locally for job {job}.")
             raise NotImplementedError("TODO implement me.")
