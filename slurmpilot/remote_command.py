@@ -49,6 +49,32 @@ class RemoteExecution:
         raise NotImplementedError()
 
 
+class LocalCommandExecution(RemoteExecution):
+    def __init__(self, master: str, user: str | None = None, proxy: str | None = None, folder: str | None = None):
+        super().__init__(master=master, proxy=proxy, user=user)
+        self.folder = folder
+
+    def run(self, command: str, pty: bool = False, env: dict | None = None, retries: int = 0, log_error: bool = True) -> CommandResult:
+        # TODO evaluate command with subprocess like in syne tune
+        raise NotImplementedError()
+
+    def upload_file(self, local_path: Path, remote_path: Path = Path("/")):
+        # TODO copy file locally
+        raise NotImplementedError()
+
+    def upload_folder(self, local_path: Path, remote_path: Path = Path("/")):
+        # TODO copy folder locally with shutil.copytree
+        raise NotImplementedError()
+
+    def download_file(self, remote_path: Path, local_path: Path):
+        # TODO copy file locally
+        raise NotImplementedError()
+
+    def download_folder(self, remote_path: Path, local_path: Path):
+        # TODO copy file locally
+        raise NotImplementedError()
+
+
 class RemoteCommandExecutionFabrik(RemoteExecution):
     # TODO we could create a dependency free version with `getstatusoutput` that calls ssh command
     def __init__(self, master: str, user: str | None = None, proxy: str | None = None):

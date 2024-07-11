@@ -483,7 +483,7 @@ class SlurmWrapper:
 
     def status(self, jobname: str):
         """sacct --jobs=11301195 --format=State -X"""
-        cluster = self.job_creation_metadata(jobname)["cluster"]
+        cluster = self.job_creation_metadata(jobname).cluster
         jobid = self.jobid_from_jobname(jobname)
         res = self.connections[cluster].run(
             f"sacct --jobs={jobid} --format=State -X -p",

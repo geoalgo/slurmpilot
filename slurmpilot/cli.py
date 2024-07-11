@@ -63,7 +63,7 @@ def main():
             raise NotImplementedError("TODO implement me.")
         if args.stop:
             print(f"Stopping job {job}.")
-            slurm.stop_job(jobname=job)
+            slurm.stop_job(jobname=job.jobname)
     else:
         if args.test_ssh_connections:
             slurm = SlurmWrapper(config=load_config())
