@@ -3,7 +3,6 @@ Example that shows how to launch a script that requires a library from another f
  and added to Python path by Slurmpilot.
 """
 import logging
-import os
 from pathlib import Path
 
 from slurmpilot.slurm_wrapper import SlurmWrapper, JobCreationInfo

@@ -37,10 +37,10 @@ class SlurmSchedulerCallback(SlurmSchedulerCallbackInterface):
         print(self.format(f"Job submitted to Slurm with the following id {jobid} saving the jobid locally."))
 
     def on_suggest_command_before_wait_completion(self, jobname: str):
-        log_cmd = f"* to show the log of your job: `slurmpilot --log {jobname}`"
-        sync_cmd = f"* to sync the artifact of your job: `slurmpilot --sync {jobname}`"
-        status_cmd = f"* to show the status of your job: `slurmpilot --status {jobname}`"
-        stop_cmd = f"* to stop your job: `slurmpilot --stop {jobname}`"
+        log_cmd = f"* show the log of your job: `slurmpilot --log {jobname}`"
+        sync_cmd = f"* sync the artifact of your job: `slurmpilot --sync {jobname}`"
+        status_cmd = f"* show the status of your job: `slurmpilot --status {jobname}`"
+        stop_cmd = f"* stop your job: `slurmpilot --stop {jobname}`"
         cmds = "\n".join([log_cmd, sync_cmd, status_cmd, stop_cmd])
         print(self.format(f"You can use the following commands in a terminal:\n{cmds}"))
 
