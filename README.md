@@ -46,9 +46,12 @@ account: "AN_ACCOUNT"
 ## Scheduling a job
 TODO Add Hellocluster example in main repo.
 
-### Workflow
+
+## FAQ/misc
+
+**What happens when I schedule a job on my local machine?**
 When scheduling a job, the files required to run it are first copied to `~/slurmpilot/jobs/YOUR_JOB_NAME` and then
-sent to the remote host to `~/slurmpilot/jobs/YOUR_JOB_NAME` (those defaults paths are modifiable).
+sent to the remote host to `~/slurmpilot/jobs/YOUR_JOB_NAME` (those defaults paths are modifiable) then Slurm is called to start your job.
 
 In particular, the following files are generated locally under `~/slurmpilot/jobs/YOUR_JOB_NAME`:
 * `metadata.json: contains metadata such as time and the configuration of the job that was scheduled
@@ -60,7 +63,6 @@ In particular, the following files are generated locally under `~/slurmpilot/job
 On the remote host, the logs are written under `logs/stderr` and `logs/stdout` and the current working dir is also 
 `~/slurmpilot/jobs/YOUR_JOB_NAME` unless overwritten in `general.yaml` config (see `Other ways to specify configurations` section).
 
-## FAQ/misc
 
 **Developer setup.**
 If you want to develop features, run the following:
