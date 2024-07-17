@@ -25,7 +25,8 @@ This library is also influenced by [Sagemaker python API](https://sagemaker.read
 To install, run the following:
 ```bash
 git clone https://github.com/geoalgo/slurmpilot.git
-pip install -e "."  
+cd slurmpilot
+pip install -e "."
 ```
 
 ## Adding a cluster
@@ -67,7 +68,9 @@ On the remote host, the logs are written under `logs/stderr` and `logs/stdout` a
 **Developer setup.**
 If you want to develop features, run the following:
 ```bash
-pip install -e ".[dev]"  # TODO update with github
+git clone https://github.com/geoalgo/slurmpilot.git
+cd slurmpilot
+pip install -e ".[dev]" 
 ```
 
 **Other ways to specify configurations.**
