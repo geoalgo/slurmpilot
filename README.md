@@ -1,10 +1,30 @@
 # Slurmpilot
 
+Slurmpilot is a python library to launch experiments in Slurm from the confort of your local machine.
+The library aims to take care of things such as sending remote code for execution, calling slurm, finding good places to write logs and accessing status from your jobs.
+
+The key features are:
+* simplify job creation, improve reproducibility and allow launching slurm jobs from your machine
+* allows to easily list experiments, logs or show status and stop jobs 
+* easy switch between cluster by just providing different config files
+
+Essentially we want to make it **much** easier and faster for user to run experiments on Slurm and reach the quality of cloud usage.
+
+Important note: Right now, the library is very much work in progress. It is usable (I am using it for all my experiments) but the documentation is yet to be made and API has not been frozen yet.
+
+**What about other tools?**
+
+If you are familiar with tools, you may know the great [Skypilot](https://github.com/skypilot-org/skypilot) which allows to run experiments seamlessly between different cloud providers.
+The goal of this project is to ultimately provide a similar high-quality user experience for academic who are running on slurm and not cloud machines.
+Extending skypilot to support seems hard given the different nature of slurm and cloud (for instance not all slurm cluster could run docker) and hence this library was made rather than just contributing to skypilot.
+
+This library is also influenced by [Sagemaker python API](https://sagemaker.readthedocs.io/en/stable/) and you may find some similarities. 
+
 ## Installing
 
 To install, run the following:
 ```bash
-git clone ...
+git clone https://github.com/geoalgo/slurmpilot.git
 pip install -e "."  
 ```
 
@@ -16,9 +36,9 @@ be like this:
 ```yaml
 host: your-gpu-cluster.com
 # optional, specify the path where files will be written by slurmpilot on the remote machine, default to ~/slurmpilot
-remote_path: "/home/username2/foo/slurmpilot/"
+remote_path: "/home/YOURCLUSTERUSERNAME/foo/slurmpilot/"
 # optional, only specify if the user on the cluster is different than on your local machine
-user: username2  
+user: YOURCLUSTERUSERNAME  
 # optional, specify a slurm account if needed
 account: "AN_ACCOUNT"  
 ```
@@ -28,7 +48,7 @@ TODO Add Hellocluster example in main repo.
 
 ### Workflow
 When scheduling a job, the files required to run it are first copied to `~/slurmpilot/jobs/YOUR_JOB_NAME` and then
-send to the remote host to `~/slurmpilot/jobs/YOUR_JOB_NAME` (those defaults paths are modifiable).
+sent to the remote host to `~/slurmpilot/jobs/YOUR_JOB_NAME` (those defaults paths are modifiable).
 
 In particular, the following files are generated locally under `~/slurmpilot/jobs/YOUR_JOB_NAME`:
 * `metadata.json: contains metadata such as time and the configuration of the job that was scheduled
@@ -42,13 +62,13 @@ On the remote host, the logs are written under `logs/stderr` and `logs/stdout` a
 
 ## FAQ/misc
 
-*Developer setup.*
+**Developer setup.**
 If you want to develop features, run the following:
 ```bash
 pip install -e ".[dev]"  # TODO update with github
 ```
 
-*Other ways to specify configurations.*
+**Other ways to specify configurations.**
 You can also specify configurations in `SLURMPILOT_SRC_DIR/config` where SLURMPILOT_SRC_DIR would replace
 where the source code of slurmpilot is installed.
 In case multiple configurations can be defined, the configurations in `~/slurmpilot` will override the one defined 
@@ -65,16 +85,19 @@ remote_path: "slurmpilot/"
 ```
 
 **TODOs**
+* high: support defining cluster as env variable, would allow to run example and make it easier to explain examples in README.md
 * high: explain examples in readme
 * high: add unit test actions
 * high: sp --sync job-name  / sync artefact of a job
-* high: subfolders
-* high: environment variable to define default cluster (high because would allow to run example without code change)
+* high: support subfolders for experiment files
+* medium: support local execution, see `notes/running_locally.md`
+* medium: generates animation of demo in readme.md
 * medium: allow to copy only python files (or as skypilot keep only files .gitignore)
 * medium: make script execution independent of cwd and dump variable to enforce reproducibility
 * medium: allow to pass variable to remote scripts, right now only env variable can be used
-* medium: stop all jobs
+* medium: allow to stop all jobs in CLI
 * medium: allow to submit list of jobs until all executed
+* medium: support numerating suffix "-1", "-2" instead of random names
 * low: doc for handling python dependencies
 * low: remove logging info ssh
 * low: allow to share common folders to avoid sending code lots of times, probably do a doc example
@@ -82,7 +105,7 @@ remote_path: "slurmpilot/"
 
 **DONE**
 * medium: dont make ssh connection to every cluster in cli, requires small refactor to avoid needing SlurmWrapper to get last jobname
-* high: handle python dependencies
+* high: handle python code dependencies
 * high: add example in main repo
 * medium: add option to stop in the CLI 
 * high: push in github 
@@ -120,9 +143,3 @@ e.g. would need to support:
 * sky down XXX
 * ssh XXX
 * sky queue XXX "ls"
-
-* evaluating from python from instance cmd="python run_glue.py --learning_rate=1e-3"
-Mid-term: 
-* support workspace/subfolder
-* support diff experiment folders
-* support numerating suffix "-1", "-2" instead of random names
