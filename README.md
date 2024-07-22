@@ -1,6 +1,6 @@
 # Slurmpilot
 
-Slurmpilot is a python library to launch experiments in Slurm from the confort of your local machine.
+Slurmpilot is a python library to launch experiments in Slurm from the comfort of your local machine.
 The library aims to take care of things such as sending remote code for execution, calling slurm, finding good places to write logs and accessing status from your jobs.
 
 The key features are:
@@ -29,43 +29,86 @@ cd slurmpilot
 pip install -e "."
 ```
 
+Or directly `pip install git+https://github.com/geoalgo/slurmpilot.git`.
+
 ## Adding a cluster
-Before you can schedule a job, you will need to add a cluster by specifying a configuration.
+Before you can schedule a job, you will need to provide information about a cluster by specifying a configuration.
 
 You can specify a configuration by adding it to `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`, for instance a configuration could 
 be like this:
 ```yaml
+# connecting to this host via ssh should work as Slurmpilot relies on ssh
 host: your-gpu-cluster.com
 # optional, specify the path where files will be written by slurmpilot on the remote machine, default to ~/slurmpilot
-remote_path: "/home/YOURCLUSTERUSERNAME/foo/slurmpilot/"
+remote_path: "/home/username2/foo/slurmpilot/"
 # optional, only specify if the user on the cluster is different than on your local machine
-user: YOURCLUSTERUSERNAME  
+user: username2  
 # optional, specify a slurm account if needed
 account: "AN_ACCOUNT"  
+# optional, allow to avoid the need to specify the partition
+default_partition: "NAME_OF_PARTITION_TO_BE_USED_BY_DEFAULT"
+```
+
+In addition, you can configure `~/slurmpilot/config/general.yaml` with the following:
+
+```yaml
+# default path where slurmpilot job files are generated
+local_path: "~/slurmpilot"
+
+# default path where slurmpilot job files are generated on the remote machine, Note: "~" cannot be used
+remote_path: "slurmpilot/"
+
+# optional, cluster that is being used by default
+default_cluster: "YOUR_CLUSTER"
 ```
 
 ## Scheduling a job
-TODO Add Hellocluster example in main repo.
+You are now ready to schedule jobs!
+Let us have a look at `launch_hellocluster.py`, in particular, you can call the following to schedule a job:
 
+```python
+cluster, partition = default_cluster_and_partition()
+jobname = unify("hello-cluster", method="coolname")  # make the jobname unique by appending a coolname
+slurm = SlurmWrapper()
+max_runtime_minutes = 60
+jobinfo = JobCreationInfo(
+    cluster=cluster,
+    partition=partition,
+    jobname=jobname,
+    entrypoint="hellocluster_script.sh",
+    src_dir="./",
+    n_cpus=1,
+    max_runtime_minutes=max_runtime_minutes,
+    # Shows how to pass an environment variable to the running script
+    env={"API_TOKEN": "DUMMY"},
+)
+jobid = slurm.schedule_job(jobinfo)
+```
 
-## FAQ/misc
+Here we created a job in the default cluster and partition. A couple of points:
+* `cluster`: you can use any cluster `YOURCLUSTER` as long as the file `config/clusters/YOURCLUSTER.yaml` exists, that the hostname is reachable through ssh and that Slurm is installed on the host.
+* `jobname` must be unique, we use `unify` which appends a unique suffix to ensure unicity even if the scripts is launched multiple times
+* `entrypoint` is the script we want to launched and should be present in `{src_dir}/{entrypoint}`
+* `n_cpus` is the number of CPUs, we can control other slurm arguments such as number of GPUs, number of nodes etc
+* `env` allows to pass environment variable to the script that is being remotely executed
 
-**What happens when I schedule a job on my local machine?**
+### Workflow
 When scheduling a job, the files required to run it are first copied to `~/slurmpilot/jobs/YOUR_JOB_NAME` and then
-sent to the remote host to `~/slurmpilot/jobs/YOUR_JOB_NAME` (those defaults paths are modifiable) then Slurm is called to start your job.
+sent to the remote host to `~/slurmpilot/jobs/YOUR_JOB_NAME` (those defaults paths are modifiable).
 
 In particular, the following files are generated locally under `~/slurmpilot/jobs/YOUR_JOB_NAME`:
-* `metadata.json: contains metadata such as time and the configuration of the job that was scheduled
-* jobid.json: contains the slurm jobid obtained when scheduling the job, if this step was successful
-* slurm_script.sh: a slurm script automatically generated from your options that is executed on the remote node with sbatch
-* src_dir: the folder containing the entrypoint
-* ${src_dir}/entrypoint: the entrypoint to be executed
+* `metadata.json`: contains metadata such as time and the configuration of the job that was scheduled
+* `jobid.json`: contains the slurm jobid obtained when scheduling the job, if this step was successful
+* `slurm_script.sh`: a slurm script automatically generated from your options that is executed on the remote node with sbatch
+* `src_dir`: the folder containing the entrypoint
+* `{src_dir}/entrypoint`: the entrypoint to be executed
 
 On the remote host, the logs are written under `logs/stderr` and `logs/stdout` and the current working dir is also 
 `~/slurmpilot/jobs/YOUR_JOB_NAME` unless overwritten in `general.yaml` config (see `Other ways to specify configurations` section).
 
+## FAQ/misc
 
-**Developer setup.**
+*Developer setup.*
 If you want to develop features, run the following:
 ```bash
 git clone https://github.com/geoalgo/slurmpilot.git
@@ -73,13 +116,9 @@ cd slurmpilot
 pip install -e ".[dev]" 
 ```
 
-**Other ways to specify configurations.**
-You can also specify configurations in `SLURMPILOT_SRC_DIR/config` where SLURMPILOT_SRC_DIR would replace
-where the source code of slurmpilot is installed.
-In case multiple configurations can be defined, the configurations in `~/slurmpilot` will override the one defined 
-in `SLURMPILOT_SRC_DIR`.
+*Global configuration.*
 
-You can also specify global properties by writing `~/slurmpilot/general.yaml` (or `SLURMPILOT_SRC_DIR/general.yaml`)
+You can specify global properties by writing `~/slurmpilot/general.yaml`
 and edit the following:
 ```
 # where files are written locally on your machine for job status, logs and artifacts
