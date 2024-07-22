@@ -3,6 +3,7 @@ import string
 import time
 from contextlib import contextmanager
 from time import perf_counter
+from typing import Tuple
 
 
 @contextmanager

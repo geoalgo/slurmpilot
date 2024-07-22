@@ -1,22 +1,22 @@
 import logging
 import os
 
+from slurmpilot.config import default_cluster_and_partition
 from slurmpilot.slurm_wrapper import SlurmWrapper, JobCreationInfo
 from slurmpilot.util import unify
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    cluster = "YOURCLUSTER"
-    partition = "YOURPARTITION"
+    cluster, partition = default_cluster_and_partition()
     jobname = unify("hello-cluster", method="coolname")  # make the jobname unique by appending a coolname
     slurm = SlurmWrapper()
     max_runtime_minutes = 60
     jobinfo = JobCreationInfo(
         cluster=cluster,
+        partition=partition,
         jobname=jobname,
         entrypoint="hellocluster_script.sh",
         src_dir="./",
-        partition=partition,
         n_cpus=1,
         max_runtime_minutes=max_runtime_minutes,
         # Shows how to pass an environment variable to the running script

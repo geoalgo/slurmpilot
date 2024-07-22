@@ -1,8 +1,9 @@
 import json
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import NamedTuple, Dict, List
+from typing import NamedTuple, Dict, List, Tuple
 
 import yaml
 
@@ -22,6 +23,9 @@ class GeneralConfig(NamedTuple):
     # default path where slurmpilot job files are generated on the remote machine, Note: "~" cannot be used
     remote_path: str
 
+    # default cluster to be used, must have a file `config/clusters/{default_cluster}.yaml` associated
+    default_cluster: str | None = None
+
 
 @dataclass
 class ClusterConfig:
@@ -30,6 +34,7 @@ class ClusterConfig:
     remote_path: str
     account: str | None = None
     user: str | None = None
+    default_partition: str | None = None
 
 
 class Config:
@@ -101,17 +106,48 @@ def load_general_config(path: Path) -> GeneralConfig:
         return None
 
 
-def load_config(code_path: Path | None = None, user_path: Path | None = None) -> Config:
-    # TODO check if duplicate exists, merge
-    if code_path is None:
-        code_path = Path(__file__).parent.parent / "config"
-    code_config = Config.load_from_path(code_path)
-
+def load_config(user_path: Path | None = None) -> Config:
+    """
+    :param user_path:
+    :return: loads configuration by default from ~/slurmpilot/config unless `user_path` is specified.
+    """
     if user_path is None:
         user_path = Path("~/slurmpilot/config").expanduser()
     user_config = Config.load_from_path(user_path)
-    general_config = code_config.general_config if user_config.general_config is None else user_config.general_config
-    merge_config = dict(code_config.cluster_configs, **user_config.cluster_configs)
-    logger.info(f"Loaded cluster configurations {list(merge_config.keys())}.")
-    return Config(general_config=general_config, cluster_configs=merge_config)
 
+    general_config = user_config.general_config
+    if general_config is None:
+        general_config = GeneralConfig(local_path="~/slurmpilot", remote_path="slurmpilot/")
+
+    logger.info(f"Loaded cluster configurations {list(user_config.cluster_configs.keys())}.")
+    return Config(general_config=general_config, cluster_configs=user_config.cluster_configs)
+
+
+def default_cluster_and_partition(user_path: Path | None = None) -> Tuple[str, str]:
+    """
+    :param user_path:
+    :return: default cluster and partition. The values should be specified in "~/slurmpilot/general.yaml" for
+    `default_cluster` and the default partition should be specified in the cluster config with
+    "~/slurmpilot/configs/{default_cluster}.yaml". Alternatively, one can also specify the default cluster with the
+    environment variable "SP_DEFAULT_CLUSTER".
+    """
+    # We have a couple of options, we could
+    # 1) load the configuration and take the first cluster (assuming it has a default partition field)
+    # 2) load an environment variable DEFAULT_CLUSTER
+    config = load_config(user_path=user_path)
+
+    if "SP_DEFAULT_CLUSTER" in os.environ:
+        cluster = os.getenv("SP_DEFAULT_CLUSTER")
+        assert cluster in config.cluster_configs
+        # TODO add partition to cluster config
+        partition = config.cluster_configs[cluster].default_partition
+    else:
+        cluster = config.general_config.default_cluster
+        assert cluster is not None,\
+            ("To be able to use a default cluster, you need to set the environment variable $SP_DEFAULT_CLUSTER to the "
+             "desired cluster or alternatively to add `default_cluster` to general.yaml")
+        partition = config.cluster_configs[cluster].default_partition
+
+    assert partition is not None, \
+        f"Cannot use default cluster {cluster} without default partition, provide it in {cluster}.yaml"
+    return cluster, partition
