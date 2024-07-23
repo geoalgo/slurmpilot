@@ -118,7 +118,7 @@ pip install -e ".[dev]"
 
 *Global configuration.*
 
-You can specify global properties by writing `~/slurmpilot/general.yaml`
+You can specify global properties by writing `~/slurmpilot/config/general.yaml`
 and edit the following:
 ```
 # where files are written locally on your machine for job status, logs and artifacts
@@ -134,11 +134,11 @@ remote_path: "slurmpilot/"
 * high: add unit test actions
 * high: sp --sync job-name  / sync artefact of a job
 * high: support subfolders for experiment files
-* medium: support local execution, see `notes/running_locally.md`
-* medium: generates animation of demo in readme.md
-* medium: allow to copy only python files (or as skypilot keep only files .gitignore)
+* medium: add support to add cluster from CLI
 * medium: make script execution independent of cwd and dump variable to enforce reproducibility
-* medium: allow to pass variable to remote scripts, right now only env variable can be used
+* medium: support local execution, see `notes/running_locally.md`
+* medium: allow to copy only python files (or as skypilot keep only files .gitignore)
+* medium: generates animation of demo in readme.md
 * medium: allow to stop all jobs in CLI
 * medium: allow to submit list of jobs until all executed
 * medium: support numerating suffix "-1", "-2" instead of random names
