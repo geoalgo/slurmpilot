@@ -10,7 +10,7 @@ setup(
     ],
     extras_require={
         "dev": ["pytest", "black", "pre-commit"],
-        "extra": ["coolname"],
+        "extra": ["coolname", 'rich'],
     },
     entry_points={
         "console_scripts": [
