@@ -8,9 +8,8 @@ from slurmpilot.util import unify
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    user_path = Path('slurmpilot/config')
-    config = load_config(user_path=user_path)
-    cluster, partition = default_cluster_and_partition(user_path=user_path)
+    config = load_config()
+    cluster, partition = default_cluster_and_partition()
     jobname = unify("hello-cluster", method="coolname")  # make the jobname unique by appending a coolname
     slurm = SlurmWrapper(config=config, clusters=[cluster])
     max_runtime_minutes = 60
