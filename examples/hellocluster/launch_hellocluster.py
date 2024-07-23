@@ -1,15 +1,18 @@
 import logging
-import os
 
-from slurmpilot.config import default_cluster_and_partition
+from pathlib import Path
+
+from slurmpilot.config import default_cluster_and_partition, load_config
 from slurmpilot.slurm_wrapper import SlurmWrapper, JobCreationInfo
 from slurmpilot.util import unify
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    cluster, partition = default_cluster_and_partition()
+    user_path = Path('slurmpilot/config')
+    config = load_config(user_path=user_path)
+    cluster, partition = default_cluster_and_partition(user_path=user_path)
     jobname = unify("hello-cluster", method="coolname")  # make the jobname unique by appending a coolname
-    slurm = SlurmWrapper()
+    slurm = SlurmWrapper(config=config, clusters=[cluster])
     max_runtime_minutes = 60
     jobinfo = JobCreationInfo(
         cluster=cluster,
