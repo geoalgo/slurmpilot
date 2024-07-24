@@ -29,6 +29,12 @@ cd slurmpilot
 pip install -e "."
 ```
 
+This will install the slurmpilot with minimum amount of dependencies. If you want to use the full functionality of slurmpilot, run:
+
+```bash
+pip install -e ".[extra]"
+```
+
 Or directly `pip install git+https://github.com/geoalgo/slurmpilot.git`.
 
 ## Adding a cluster
@@ -63,18 +69,11 @@ default_cluster: "YOUR_CLUSTER"
 ```
 
 ## Scheduling a job
-You are now ready to schedule jobs! To run the following examples, make sure to install all dependencies:
-
-```bash
-pip install -e ".[extra]"
-```
-
-Let us have a look at `launch_hellocluster.py`, in particular, you can call the following to schedule a job:
+You are now ready to schedule jobs! Let us have a look at `launch_hellocluster.py`, in particular, you can call the following to schedule a job:
 
 ```python
-user_path = Path('slurmpilot/config')
-config = load_config(user_path=user_path)
-cluster, partition = default_cluster_and_partition(user_path=user_path)
+config = load_config()
+cluster, partition = default_cluster_and_partition()
 jobname = unify("hello-cluster", method="coolname")  # make the jobname unique by appending a coolname
 slurm = SlurmWrapper(config=config, clusters=[cluster])
 max_runtime_minutes = 60
