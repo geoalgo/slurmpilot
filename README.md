@@ -26,16 +26,13 @@ To install, run the following:
 ```bash
 git clone https://github.com/geoalgo/slurmpilot.git
 cd slurmpilot
-pip install -e "."
-```
-
-This will install the slurmpilot with minimum amount of dependencies. If you want to use the full functionality of slurmpilot, run:
-
-```bash
 pip install -e ".[extra]"
 ```
 
-Or directly `pip install git+https://github.com/geoalgo/slurmpilot.git`.
+Or directly from github:
+```bash
+pip install "slurmpilot[extra] @ git+https://github.com/geoalgo/slurmpilot.git"`
+```
 
 ## Adding a cluster
 Before you can schedule a job, you will need to provide information about a cluster by specifying a configuration.
