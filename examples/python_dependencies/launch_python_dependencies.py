@@ -5,14 +5,13 @@ Example that shows how to launch a script that requires a library from another f
 import logging
 from pathlib import Path
 
+from slurmpilot.config import default_cluster_and_partition
 from slurmpilot.slurm_wrapper import SlurmWrapper, JobCreationInfo
 from slurmpilot.util import unify
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    cluster = "meta"
-    partition = "mldlc_gpu-rtx2080"
-
+    cluster, partition = default_cluster_and_partition()
     jobname = unify("custom-library", method="coolname")  # make the jobname unique by appending a coolname
     slurm = SlurmWrapper(clusters=[cluster])
     max_runtime_minutes = 60
