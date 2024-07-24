@@ -15,7 +15,7 @@ Important note: Right now, the library is very much work in progress. It is usab
 **What about other tools?**
 
 If you are familiar with tools, you may know the great [Skypilot](https://github.com/skypilot-org/skypilot) which allows to run experiments seamlessly between different cloud providers.
-The goal of this project is to ultimately provide a similar high-quality user experience for academic who are running on slurm and not cloud machines.
+The goal of this project is to ultimately provide a similar high-quality user experience for academics who are running on slurm and not cloud machines.
 Extending skypilot to support seems hard given the different nature of slurm and cloud (for instance not all slurm cluster could run docker) and hence this library was made rather than just contributing to skypilot.
 
 This library is also influenced by [Sagemaker python API](https://sagemaker.readthedocs.io/en/stable/) and you may find some similarities. 
@@ -27,6 +27,12 @@ To install, run the following:
 git clone https://github.com/geoalgo/slurmpilot.git
 cd slurmpilot
 pip install -e "."
+```
+
+This will install the slurmpilot with minimum amount of dependencies. If you want to use the full functionality of slurmpilot, run:
+
+```bash
+pip install -e ".[extra]"
 ```
 
 Or directly `pip install git+https://github.com/geoalgo/slurmpilot.git`.
@@ -63,13 +69,13 @@ default_cluster: "YOUR_CLUSTER"
 ```
 
 ## Scheduling a job
-You are now ready to schedule jobs!
-Let us have a look at `launch_hellocluster.py`, in particular, you can call the following to schedule a job:
+You are now ready to schedule jobs! Let us have a look at `launch_hellocluster.py`, in particular, you can call the following to schedule a job:
 
 ```python
+config = load_config()
 cluster, partition = default_cluster_and_partition()
 jobname = unify("hello-cluster", method="coolname")  # make the jobname unique by appending a coolname
-slurm = SlurmWrapper()
+slurm = SlurmWrapper(config=config, clusters=[cluster])
 max_runtime_minutes = 60
 jobinfo = JobCreationInfo(
     cluster=cluster,
