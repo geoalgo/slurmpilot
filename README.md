@@ -132,7 +132,6 @@ remote_path: "slurmpilot/"
 ```
 
 **TODOs**
-* high: support defining cluster as env variable, would allow to run example and make it easier to explain examples in README.md
 * high: explain examples in readme
 * high: add unit test actions
 * high: sp --sync job-name  / sync artefact of a job
@@ -151,6 +150,7 @@ remote_path: "slurmpilot/"
 * TBD: chain of jobs
 
 **DONE**
+* high: support defining cluster as env variable, would allow to run example and make it easier to explain examples in README.md
 * medium: dont make ssh connection to every cluster in cli, requires small refactor to avoid needing SlurmWrapper to get last jobname
 * high: handle python code dependencies
 * high: add example in main repo
