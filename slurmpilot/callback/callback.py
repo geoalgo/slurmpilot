@@ -19,30 +19,40 @@ class SlurmSchedulerCallbackInterface:
 
 class SlurmSchedulerCallback(SlurmSchedulerCallbackInterface):
     def __init__(self):
-        self.format_pattern = "0;30;34"
+        self.format_default = "0;30;34"
+        self.format_command = "1;37;36"
+        self.format_jobname = "5;31;38"
 
-    def format(self, s):
-        return f'\x1b[{self.format_pattern}m{s}\x1b[0m'
+    def format(self, s, format_pattern=None):
+        if not format_pattern:
+            format_pattern = self.format_default
+        return f'\x1b[{format_pattern}m{s}\x1b[0m'
 
     def on_job_scheduled_start(self, cluster: str, jobname: str):
-        print(self.format(f"Starting job {jobname} on {cluster}."))
+        print(self.format(f"Starting job {jobname} on ") + self.format(cluster, self.format_jobname))
 
     def on_establishing_connection(self, cluster: str):
-        print(self.format(f"Establishing ssh connection with {cluster}."))
+        print(self.format(f"Establishing ssh connection with {cluster}"))
 
     def on_sending_artifact(self, localpath: str, remotepath: str, cluster: str):
-        print(self.format(f"Sending job data from {localpath} to {cluster}:{remotepath}."))
+        print(self.format(f"Sending job data from {localpath} to {cluster}:{remotepath}"))
 
     def on_job_submitted_to_slurm(self, jobid: int, jobname: str):
-        print(self.format(f"Job submitted to Slurm with the following id {jobid} saving the jobid locally."))
+        print(self.format(f"Job submitted to Slurm with the following id {jobid} saving the jobid locally"))
 
     def on_suggest_command_before_wait_completion(self, jobname: str):
-        log_cmd = f"* show the log of your job: `slurmpilot --log {jobname}`"
-        sync_cmd = f"* sync the artifact of your job: `slurmpilot --sync {jobname}`"
-        status_cmd = f"* show the status of your job: `slurmpilot --status {jobname}`"
-        stop_cmd = f"* stop your job: `slurmpilot --stop {jobname}`"
-        cmds = "\n".join([log_cmd, sync_cmd, status_cmd, stop_cmd])
-        print(self.format(f"You can use the following commands in a terminal:\n{cmds}"))
+        commands = [
+            ("show the log of your job", f"slurmpilot --log {jobname}",),
+            ("sync the artifact of your job", f"slurmpilot --sync {jobname}",),
+            ("show the status of your job", f"slurmpilot --status {jobname}",),
+            ("stop your job", f"slurmpilot --stop {jobname}",),
+        ]
+        commands_strings = []
+        for description, command in commands:
+            command = self.format(command, self.format_command)
+            commands_strings.append(self.format(f"* {description}: ") + f"`{command}`")
+        cmds = "\n".join(commands_strings)
+        print(self.format(f"You can use the following commands in a terminal:\n") + cmds)
 
     def on_waiting_completion(self, jobname: str, status: str, n_seconds_wait: int):
         # TODO dependency inversion to support rich
@@ -79,6 +89,7 @@ if __name__ == '__main__':
     cb.on_establishing_connection(cluster=cluster)
     cb.on_sending_artifact(cluster=cluster, localpath="foo/", remotepath="foo2/")
     cb.on_job_submitted_to_slurm(jobname=jobname, jobid=12)
-    for _ in range(20):
+    cb.on_suggest_command_before_wait_completion(jobname=jobname)
+    for _ in range(4):
         cb.on_waiting_completion(jobname=jobname, status="PENDING", n_seconds_wait=1)
         time.sleep(0.2)
