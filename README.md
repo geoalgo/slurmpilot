@@ -37,8 +37,15 @@ pip install "slurmpilot[extra] @ git+https://github.com/geoalgo/slurmpilot.git"`
 ## Adding a cluster
 Before you can schedule a job, you will need to provide information about a cluster by specifying a configuration.
 
-You can specify a configuration by adding it to `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`, for instance a configuration could 
-be like this:
+You can run the following command:
+```bash 
+slurmpilot --add-cluster
+```
+which will ask you for the name of the cluster, the hostname, your username etc. After adding those information, a ssh
+connection will be made with the provided information to check if the connection can be made.
+
+Alternatively, you can specify/edit configuration directly in `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`, 
+for instance a configuration could be like this:
 ```yaml
 # connecting to this host via ssh should work as Slurmpilot relies on ssh
 host: your-gpu-cluster.com
@@ -136,6 +143,7 @@ remote_path: "slurmpilot/"
 * high: add unit test actions
 * high: sp --sync job-name  / sync artefact of a job
 * high: support subfolders for experiment files
+* medium: discuss getting out of your way philosophy of the tool
 * medium: add support to add cluster from CLI
 * medium: make script execution independent of cwd and dump variable to enforce reproducibility
 * medium: support local execution, see `notes/running_locally.md`
@@ -150,6 +158,7 @@ remote_path: "slurmpilot/"
 * TBD: chain of jobs
 
 **DONE**
+* medium/high: script to install cluster (ask username, hostname etc)
 * high: support defining cluster as env variable, would allow to run example and make it easier to explain examples in README.md
 * medium: dont make ssh connection to every cluster in cli, requires small refactor to avoid needing SlurmWrapper to get last jobname
 * high: handle python code dependencies

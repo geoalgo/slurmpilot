@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(message)s", level=logging.INFO
 )
-config_path = Path(__file__).parent.parent / "config"
+config_path = Path("~/slurmpilot/config").expanduser()
 
 
 class GeneralConfig(NamedTuple):
@@ -31,7 +31,7 @@ class GeneralConfig(NamedTuple):
 class ClusterConfig:
     # Configuration for a cluster, can override default in GeneralConfig
     host: str
-    remote_path: str
+    remote_path: str = "slurmpilot/"
     account: str | None = None
     user: str | None = None
     default_partition: str | None = None
