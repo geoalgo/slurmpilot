@@ -65,6 +65,7 @@ class JobCreationInfo:
     max_runtime_minutes: int = 60  # max runtime in minutes
     account: str = None
     env: dict = None
+    nodelist: str = None
 
     def __post_init__(self):
         if self.python_args:
@@ -111,6 +112,8 @@ class JobCreationInfo:
             res += sbatch_line(f"--gres=gpu:{self.n_gpus}")
         if self.account:
             res += sbatch_line(f"--account={self.account}")
+        if self.nodelist:
+            res += sbatch_line(f"--nodelist={self.nodelist}")
         if self.max_runtime_minutes:
             assert isinstance(
                 self.max_runtime_minutes, int
