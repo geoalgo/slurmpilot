@@ -46,6 +46,7 @@ class JobCreationInfo:
     max_runtime_minutes: int = 60  # max runtime in minutes
     account: str = None
     env: dict = None
+    nodelist: str = None
 
     def check_path(self):
         assert Path(
@@ -79,6 +80,8 @@ class JobCreationInfo:
             res += sbatch_line(f"--gres=gpu:{self.n_gpus}")
         if self.account:
             res += sbatch_line(f"--account={self.account}")
+        if self.nodelist:
+            res += sbatch_line(f"--nodelist={self.nodelist}")
         if self.max_runtime_minutes:
             assert isinstance(self.max_runtime_minutes, int), "maxruntime must be an integer expressing the number of minutes"
             res += sbatch_line(f"--time={self.max_runtime_minutes}")
