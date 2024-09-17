@@ -33,9 +33,10 @@ logging.basicConfig(
 @dataclass
 class JobCreationInfo:
     jobname: str
-    entrypoint: str = None
-    src_dir: str = None
-    # TODO
+    entrypoint: str | None = None
+    src_dir: str | None = None
+
+    sbatch_arguments: str | None = None  # argument to be passed to sbatch
     python_libraries: List[str] | None = None
 
     # ressources
@@ -208,6 +209,7 @@ class SlurmWrapper:
             jobid = self._call_sbatch_remotely(
                 cluster_connection, local_job_paths, remote_job_paths,
                 sbatch_env=job_info.env if job_info.env else {},
+                sbatch_arg=job_info.sbatch_arguments,
             )
             self.job_scheduling_callback.on_job_submitted_to_slurm(jobname=job_info.jobname, jobid=jobid)
             return jobid
@@ -256,6 +258,7 @@ class SlurmWrapper:
         local_job_paths: JobPathLogic,
         remote_job_path: JobPathLogic,
         sbatch_env: dict,
+        sbatch_arg: str | None,
     ) -> int:
         # call sbatch remotely and returns slurm job id if successful
         if sbatch_env:
@@ -269,8 +272,10 @@ class SlurmWrapper:
             # TODO make those idempotent,
             #  running `sbatch slurm_script.sh` or `sbatch path_to_script/slurm_script.sh`
             #  should work no matter the directory and variables should be saved for easier reproducibility
+            if sbatch_arg is None:
+                sbatch_arg = ""
             res = cluster_connection.run(
-                f"cd {remote_job_path.job_path()}; mkdir -p logs/; sbatch {export_env} slurm_script.sh",
+                f"cd {remote_job_path.job_path()}; mkdir -p logs/; sbatch {sbatch_arg} {export_env} slurm_script.sh",
                 env={
                     "SLURMPILOT_PATH": remote_job_path.slurmpilot_path(),
                     "SLURMPILOT_JOBPATH": remote_job_path.resolve_path(),
