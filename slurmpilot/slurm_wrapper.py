@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import NamedTuple, List, Tuple
+import traceback
 
 from invoke import UnexpectedExit
 from paramiko.ssh_exception import AuthenticationException
@@ -161,17 +162,12 @@ class SlurmWrapper:
                     home_res = self.connections[cluster].run("echo $HOME")
                     self.home_dir[cluster] = Path(home_res.stdout.strip("\n"))
                 except (gaierror, AuthenticationException) as e:
-                    raise ValueError(f"Cannot connect to cluster {cluster}. Verify your ssh access.")
+                    traceback.print_exc()
+                    raise ValueError(f"Cannot connect to cluster {cluster}. Verify your ssh access. Error: {str(e)}")
 
     def list_clusters(self, cluster: str | None = None) -> List[str]:
         # return a list consisting of the provided cluster if not None or all the clusters if None
         return [cluster] if cluster else self.clusters
-
-    def print_utilisation(self, cluster: str | None = None) -> None:
-        for cluster_to_show in self.list_clusters(cluster):
-            print(cluster_to_show)
-            res = self.connections[cluster_to_show].run("sfree", pty=True)
-            print(res.stdout)
 
     def schedule_job(self, job_info: JobCreationInfo, dryrun: bool = False) -> int:
         # TODO support passing all arguments directly instead of intermediate object
@@ -241,7 +237,7 @@ class SlurmWrapper:
         current_status = self.status(jobname)
         text = f"Waiting job to finish, current status {current_status}"
         wait_interval = 1
-        with Live(Spinner(spinner_name, text=Text(text, style="green")), refresh_per_second=20) as live:
+        with Live(Spinner(spinner_name, text=Text(text, style="green")), refresh_per_second=5) as live:
             i = 0
             while (
                     current_status in [JobStatus.pending, JobStatus.running] and wait_interval * i < max_seconds

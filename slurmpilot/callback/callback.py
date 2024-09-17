@@ -61,7 +61,7 @@ class SlurmSchedulerCallback(SlurmSchedulerCallbackInterface):
     def on_config_loaded(self, config: Config):
         print(self.format(f"Cluster configurations loaded:"))
         for cluster, cluster_config in config.cluster_configs.items():
-            print(self.format(cluster_config))
+            print(self.format(f"{cluster}: {cluster_config}"))
 
 
 if __name__ == '__main__':
