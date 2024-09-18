@@ -393,13 +393,11 @@ class SlurmWrapper:
     def latest_job(config: Config | None = None) -> JobMetadata:
         if config is None:
             config = load_config()
-        files = list((config.local_slurmpilot_path() / "jobs").expanduser().glob("*"))
+        files = list((config.local_slurmpilot_path() / "jobs").expanduser().rglob("metadata.json"))
         if len(files) > 0:
-            latest_file = max(
-                [f for f in files if f.is_dir()], key=lambda item: item.stat().st_ctime
-            )
-            jobname = Path(latest_file).name
-            return SlurmWrapper.job_creation_metadata(jobname)
+            latest_file = max(files, key=lambda item: item.stat().st_ctime)
+            with open(latest_file, "r") as f:
+                return JobMetadata.from_json(f.read())
         raise ValueError(f"No job was found at {config.local_slurmpilot_path()}")
 
     def cluster(self, jobname: str):
