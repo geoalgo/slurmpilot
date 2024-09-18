@@ -7,7 +7,7 @@ from slurmpilot.util import unify
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     cluster, partition = default_cluster_and_partition()
-    jobname = unify("hello-cluster", method="coolname")  # make the jobname unique by appending a coolname
+    jobname = unify("examples/hello-cluster", method="coolname")  # make the jobname unique by appending a coolname
     slurm = SlurmWrapper(clusters=[cluster])
     max_runtime_minutes = 60
     jobinfo = JobCreationInfo(

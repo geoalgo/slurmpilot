@@ -128,7 +128,6 @@ class JobMetadata:
         )
 
 
-
 class SlurmWrapper:
     def __init__(
         self,
@@ -214,7 +213,7 @@ class SlurmWrapper:
             self.job_scheduling_callback.on_job_submitted_to_slurm(jobname=job_info.jobname, jobid=jobid)
             return jobid
         else:
-            return None
+            return -1
 
     def stop_job(self, jobname: str):
         metadata = self.job_creation_metadata(jobname)
@@ -322,7 +321,7 @@ class SlurmWrapper:
             jobname=job_info.jobname,
             entrypoint=job_info.entrypoint,
             src_dir_name=Path(job_info.src_dir).resolve().name,
-            root_path=self.config.local_slurmpilot_path(),
+            root_path=str(self.config.local_slurmpilot_path()),
         )
         assert (
             not local_job_paths.job_path().exists()

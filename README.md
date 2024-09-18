@@ -71,7 +71,7 @@ You are now ready to schedule jobs! Let us have a look at `launch_hellocluster.p
 ```python
 config = load_config()
 cluster, partition = default_cluster_and_partition()
-jobname = unify("hello-cluster", method="coolname")  # make the jobname unique by appending a coolname
+jobname = unify("examples/hello-cluster", method="coolname")  # make the jobname unique by appending a coolname
 slurm = SlurmWrapper(config=config, clusters=[cluster])
 max_runtime_minutes = 60
 jobinfo = JobCreationInfo(
@@ -90,7 +90,7 @@ jobid = slurm.schedule_job(jobinfo)
 
 Here we created a job in the default cluster and partition. A couple of points:
 * `cluster`: you can use any cluster `YOURCLUSTER` as long as the file `config/clusters/YOURCLUSTER.yaml` exists, that the hostname is reachable through ssh and that Slurm is installed on the host.
-* `jobname` must be unique, we use `unify` which appends a unique suffix to ensure unicity even if the scripts is launched multiple times
+* `jobname` must be unique, we use `unify` which appends a unique suffix to ensure unicity even if the scripts is launched multiple times. Nested folders can be used, in this case, files will be written under "~/slurmpilot/jobs/examples/hello-cluster..."
 * `entrypoint` is the script we want to launched and should be present in `{src_dir}/{entrypoint}`
 * `n_cpus` is the number of CPUs, we can control other slurm arguments such as number of GPUs, number of nodes etc
 * `env` allows to pass environment variable to the script that is being remotely executed
@@ -135,7 +135,7 @@ remote_path: "slurmpilot/"
 * high: explain examples in readme
 * high: add unit test actions
 * high: sp --sync job-name  / sync artefact of a job
-* high: support subfolders for experiment files
+* medium/high: list jobs
 * medium: discuss getting out of your way philosophy of the tool
 * medium: make script execution independent of cwd and dump variable to enforce reproducibility
 * medium: support local execution, see `notes/running_locally.md`
@@ -150,6 +150,7 @@ remote_path: "slurmpilot/"
 * TBD: chain of jobs
 
 **DONE**
+* high: support subfolders for experiment files
 * medium: add support to add cluster from CLI
 * medium/high: script to install cluster (ask username, hostname etc)
 * high: support defining cluster as env variable, would allow to run example and make it easier to explain examples in README.md

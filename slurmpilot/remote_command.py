@@ -168,7 +168,7 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
         # Note, we could also tar the whole thing like we do to send, the reason we pick rsync is that often
         # some files will only be present and rsync allows to not copy those based on hashes
         logger.info(f"Running rsync from {remote_path} to {local_path}")
-        command = f"rsync -aPvz {self.user}@{self.master}:{remote_path} {local_path}"
+        command = f"rsync -aPvz {self.user}@{self.master}:{remote_path} {local_path.parent}"
         subprocess.run(command.split(" "), check=True)
 
 

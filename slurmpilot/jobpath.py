@@ -13,14 +13,15 @@ class JobPathLogic:
     def __init__(
         self,
         jobname: str,
-        entrypoint: str = None,
-        src_dir_name: str = None,
-        root_path: str = None,
+        entrypoint: str | None = None,
+        src_dir_name: str | None = None,
+        root_path: str | None = None,
     ):
         f"""
         performs bookeeping path logic, valid both locally and remotely.
         :param root_path: path where slurmpilot is available
-        :param jobname: name of the job
+        :param jobname: name of the job, can nest subfolders, for instance "group_experiment_1/experiment2" is allowed 
+        and the folder of the job will then be "~/slurmpilot/jobs/group_experiment_1/experiment2".
         :param src_dir_name: directory where the entrypoint is found
         :param entrypoint: path to the entrypoint starting at `src_dir_name`, e.g. f"{src_dir_name}/{entrypoint}" 
         should exists

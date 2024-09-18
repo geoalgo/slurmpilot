@@ -1,15 +1,3 @@
-"""
-* tool to display logs/status from terminal:
-  * slurmpilot --help
-  * slurmpilot --test-ssh-connections
-  * slurmpilot --log  # show last log
-  * slurmpilot --log job-name
-  * slurmpilot --status 10  # show status of last 10 jobs (list pulled from local files)
-  * slurmpilot --status job-name
-  * slurmpilot --sync job-name  # sync artifacts
-  * TODO: slurmpilot --delete-cluster-files --cluster meta
-"""
-
 import argparse
 import os
 
@@ -38,16 +26,16 @@ def main():
     parser.add_argument('--stop', help="Stop the specified job", action=argparse.BooleanOptionalAction)
     parser.add_argument('--download', help="Download data for the specified job", action=argparse.BooleanOptionalAction)
     parser.add_argument('--status', help="Show status for the specified job", action=argparse.BooleanOptionalAction)
-    parser.add_argument('--sync', help="Retrieve job folder locally for the specified job",
-                        action=argparse.BooleanOptionalAction)
+    parser.add_argument('--list_jobs', help="List n latest jobs", required=False, type=int)
+
     parser.add_argument('--test-ssh-connections', help="Test ssh connections", action=argparse.BooleanOptionalAction)
     parser.add_argument('--add-cluster', help="Add a new cluster", action=argparse.BooleanOptionalAction)
 
     args = parser.parse_args()
 
-    is_command_requiring_jobname = any([args.log, args.download, args.status, args.sync, args.stop])
+    is_command_requiring_jobname = any([args.log, args.download, args.status, args.stop])
     if not is_command_requiring_jobname and not args.test_ssh_connections and not args.add_cluster:
-        raise ValueError("No action specifed, run slurmpilot YOURJOB --log to display the log, or use --status, --sync for other actions.")
+        raise ValueError("No action specifed, run slurmpilot YOURJOB --log to display the log, or use --status for other actions.")
 
     if is_command_requiring_jobname:
         job = jobname_from_cli_args_or_take_latest(args)
@@ -62,9 +50,6 @@ def main():
         if args.status:
             print(f"Displaying status for job {job}.")
             print(slurm.status(jobname=job.jobname))
-        if args.sync:
-            print(f"Pulling folder locally for job {job}.")
-            raise NotImplementedError("TODO implement me.")
         if args.stop:
             print(f"Stopping job {job}.")
             slurm.stop_job(jobname=job.jobname)
@@ -96,6 +81,9 @@ def main():
             except ValueError as e:
                 print(f"⚠️ Could not connect to ssh, you can remove the file {config_cluster_path} or rerun this script")
                 # config_cluster_path.unlink()
+        elif args.list_jobs:
+            n_jobs = args.list_jobs
+            raise NotImplementedError()
 
 
 if __name__ == '__main__':
