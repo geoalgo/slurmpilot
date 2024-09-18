@@ -24,13 +24,6 @@ This library is also influenced by [Sagemaker python API](https://sagemaker.read
 
 To install, run the following:
 ```bash
-git clone https://github.com/geoalgo/slurmpilot.git
-cd slurmpilot
-pip install -e ".[extra]"
-```
-
-Or directly from github:
-```bash
 pip install "slurmpilot[extra] @ git+https://github.com/geoalgo/slurmpilot.git"
 ```
 
@@ -144,7 +137,6 @@ remote_path: "slurmpilot/"
 * high: sp --sync job-name  / sync artefact of a job
 * high: support subfolders for experiment files
 * medium: discuss getting out of your way philosophy of the tool
-* medium: add support to add cluster from CLI
 * medium: make script execution independent of cwd and dump variable to enforce reproducibility
 * medium: support local execution, see `notes/running_locally.md`
 * medium: allow to copy only python files (or as skypilot keep only files .gitignore)
@@ -158,6 +150,7 @@ remote_path: "slurmpilot/"
 * TBD: chain of jobs
 
 **DONE**
+* medium: add support to add cluster from CLI
 * medium/high: script to install cluster (ask username, hostname etc)
 * high: support defining cluster as env variable, would allow to run example and make it easier to explain examples in README.md
 * medium: dont make ssh connection to every cluster in cli, requires small refactor to avoid needing SlurmWrapper to get last jobname
