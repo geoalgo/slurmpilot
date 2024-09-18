@@ -15,7 +15,7 @@ import traceback
 from invoke import UnexpectedExit
 from paramiko.ssh_exception import AuthenticationException
 
-from slurmpilot.callback.callback import SlurmSchedulerCallback
+from slurmpilot.callback import SlurmSchedulerCallback
 from slurmpilot.config import Config, load_config
 from slurmpilot.jobpath import JobPathLogic
 from slurmpilot.remote_command import (
