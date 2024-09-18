@@ -31,7 +31,7 @@ pip install -e ".[extra]"
 
 Or directly from github:
 ```bash
-pip install "slurmpilot[extra] @ git+https://github.com/geoalgo/slurmpilot.git"`
+pip install "slurmpilot[extra] @ git+https://github.com/geoalgo/slurmpilot.git"
 ```
 
 ## Adding a cluster
