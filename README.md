@@ -134,8 +134,7 @@ remote_path: "slurmpilot/"
 **TODOs**
 * high: explain examples in readme
 * high: add unit test actions
-* high: sp --sync job-name  / sync artefact of a job
-* medium/high: list jobs
+* medium: suppress connection print output of fabrik (happens at connection, not when running commands)
 * medium: discuss getting out of your way philosophy of the tool
 * medium: make script execution independent of cwd and dump variable to enforce reproducibility
 * medium: support local execution, see `notes/running_locally.md`
@@ -150,6 +149,7 @@ remote_path: "slurmpilot/"
 * TBD: chain of jobs
 
 **DONE**
+* medium/high: list jobs
 * high: support subfolders for experiment files
 * medium: add support to add cluster from CLI
 * medium/high: script to install cluster (ask username, hostname etc)

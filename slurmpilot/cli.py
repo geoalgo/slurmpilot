@@ -34,7 +34,7 @@ def main():
     args = parser.parse_args()
 
     is_command_requiring_jobname = any([args.log, args.download, args.status, args.stop])
-    if not is_command_requiring_jobname and not args.test_ssh_connections and not args.add_cluster:
+    if not is_command_requiring_jobname and not args.test_ssh_connections and not args.add_cluster and not args.list_jobs:
         raise ValueError("No action specifed, run slurmpilot YOURJOB --log to display the log, or use --status for other actions.")
 
     if is_command_requiring_jobname:
@@ -83,7 +83,7 @@ def main():
                 # config_cluster_path.unlink()
         elif args.list_jobs:
             n_jobs = args.list_jobs
-            raise NotImplementedError()
+            SlurmWrapper(check_connection=False, config=load_config()).print_jobs(n_jobs=n_jobs)
 
 
 if __name__ == '__main__':

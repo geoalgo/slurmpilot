@@ -80,7 +80,6 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
     def __init__(self, master: str, user: str | None = None, proxy: str | None = None):
         super().__init__(master=master, proxy=proxy, user=user)
         from fabric import Connection
-
         self.connection = Connection(
             self.master,
             user=user,
@@ -92,7 +91,7 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
         num_trial = 1 + retries
         while not success and num_trial > 0:
             try:
-                fabric_result = self.connection.run(command=command, hide=True, pty=pty, env=env)
+                fabric_result = self.connection.run(command=command, hide=True, pty=pty, env=env, )
                 success = not fabric_result.failed
                 # TODO show error when failed
                 if fabric_result.failed:

@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import NamedTuple, List, Tuple
 import traceback
 
+import pandas as pd
 from invoke import UnexpectedExit
 from paramiko.ssh_exception import AuthenticationException
 
@@ -35,6 +36,7 @@ class JobCreationInfo:
     jobname: str
     entrypoint: str | None = None
     src_dir: str | None = None
+    exp_id: str | None = None
 
     sbatch_arguments: str | None = None  # argument to be passed to sbatch
     python_libraries: List[str] | None = None
@@ -133,6 +135,7 @@ class SlurmWrapper:
         self,
         config: Config | None = None,
         clusters: List[str] | None = None,
+        check_connection: bool = True,
     ):
         if config is not None:
             self.config = config
@@ -148,7 +151,8 @@ class SlurmWrapper:
         self.clusters = clusters
         self.job_scheduling_callback = SlurmSchedulerCallback()
 
-        self.job_scheduling_callback.on_config_loaded(self.config)
+        if check_connection:
+            self.job_scheduling_callback.on_config_loaded(self.config)
         self.connections = {}
 
         # dictionary from cluster name to home dir
@@ -156,14 +160,15 @@ class SlurmWrapper:
         for cluster, config in self.config.cluster_configs.items():
             if cluster in clusters:
                 self.connections[cluster] = RemoteCommandExecutionFabrik(master=config.host, user=config.user if config.user else os.getenv("USER"))
-                try:
-                    logger.debug(f"Try sending command to {cluster}.")
-                    self.job_scheduling_callback.on_establishing_connection(cluster=cluster)
-                    home_res = self.connections[cluster].run("echo $HOME")
-                    self.home_dir[cluster] = Path(home_res.stdout.strip("\n"))
-                except (gaierror, AuthenticationException) as e:
-                    traceback.print_exc()
-                    raise ValueError(f"Cannot connect to cluster {cluster}. Verify your ssh access. Error: {str(e)}")
+                if check_connection:
+                    try:
+                        logger.debug(f"Try sending command to {cluster}.")
+                        self.job_scheduling_callback.on_establishing_connection(cluster=cluster)
+                        home_res = self.connections[cluster].run("echo $HOME")
+                        self.home_dir[cluster] = Path(home_res.stdout.strip("\n"))
+                    except (gaierror, AuthenticationException) as e:
+                        traceback.print_exc()
+                        raise ValueError(f"Cannot connect to cluster {cluster}. Verify your ssh access. Error: {str(e)}")
 
     def list_clusters(self, cluster: str | None = None) -> List[str]:
         # return a list consisting of the provided cluster if not None or all the clusters if None
@@ -408,18 +413,19 @@ class SlurmWrapper:
         job_metadata = self.job_creation_metadata(jobname=jobname)
         return job_metadata.cluster
 
-    def list_jobs(self) -> List[JobMetadata]:
-        files = list((self.config.local_slurmpilot_path() / "jobs").expanduser().glob("*"))
-        rows = []
+    def list_jobs(self, n_jobs: int) -> List[JobMetadata]:
+        files = sorted((self.config.local_slurmpilot_path() / "jobs").expanduser().rglob("metadata.json"),
+                       key=lambda item: item.stat().st_ctime, reverse=True)
+        jobs = []
+        files = list(files)
+        files = files[:n_jobs]
         for file in files:
-            if not file.is_file() and (file / "metadata.json").exists():
-                print(file)
-                with open(file / "metadata.json", "r") as f:
-                    try:
-                        rows.append(JobMetadata.from_json(f.readline()))
-                    except json.decoder.JSONDecodeError:
-                        pass
-        return rows
+            with open(file, "r") as f:
+                try:
+                    jobs.append(JobMetadata.from_json(f.read()))
+                except json.decoder.JSONDecodeError:
+                    pass
+        return jobs
 
     def list_jobs_slurm(
         self,
@@ -446,6 +452,49 @@ class SlurmWrapper:
             if print_list:
                 print_table(rows)
         return rows
+
+    def fetch_status(self, jobs: List[JobMetadata]) -> List[dict]:
+        clusters = list(set(job.cluster for job in jobs))
+        statuses = []
+        for cluster in clusters:
+            statuses += self.list_jobs_slurm(print_list=False, cluster=cluster)
+
+        statuses = {status["JobName"]: status for status in statuses}
+        statuses = [statuses.get(job.jobname) for job in jobs]
+        assert len(jobs) == len(statuses)
+        return statuses
+
+    def print_jobs(self, n_jobs: int = 10, max_colwidth: int = 40, status_verbose: bool = True):
+        rows = []
+        jobs = self.list_jobs(n_jobs)
+        statuses = self.fetch_status(jobs)
+        for job, status in zip(jobs, statuses):
+            if status is None:
+                status_symbol = "❌ Failed launching"
+            else:
+                status_mapping = {
+                    "OUT_OF_MEMORY": "🤯 OOM",
+                    "FAILED": "❌ Slurm job failed",
+                    "PENDING": "⏳Pending",
+                    "RUNNING": "🏃️Running",
+                    "COMPLETED": "✅ Completed",
+                    "CANCELED": "⚠️Canceled",
+                }
+                if "CANCELED" in status["State"]:
+                    status_symbol = "⚠️"
+                else:
+                    status_symbol = status_mapping.get(status["State"], f'Unknown state: {status["State"]}')
+
+            rows.append({
+                "job": Path(job.jobname).name,
+                "date": pd.to_datetime(job.date).strftime("%d/%m/%y-%H:%M"),
+                "cluster": job.job_creation_info.cluster,
+                "status": f"{status_symbol} " if status_verbose else f"{status_symbol[:1]} ",
+                # "exp_id": Path(job.jobname).parent,
+                "full jobname": job.jobname,
+            })
+        df = pd.DataFrame(rows)
+        print(df.to_string(index=False, max_colwidth=max_colwidth, ))
 
     def download_job(self, jobname: str | None = None):
         if jobname is None:
