@@ -26,7 +26,7 @@ def main():
     parser.add_argument('--stop', help="Stop the specified job", action=argparse.BooleanOptionalAction)
     parser.add_argument('--download', help="Download data for the specified job", action=argparse.BooleanOptionalAction)
     parser.add_argument('--status', help="Show status for the specified job", action=argparse.BooleanOptionalAction)
-    parser.add_argument('--list_jobs', help="List n latest jobs", required=False, type=int)
+    parser.add_argument('--list_jobs', help="List n latest jobs", required=False, type=int, default=5)
 
     parser.add_argument('--test-ssh-connections', help="Test ssh connections", action=argparse.BooleanOptionalAction)
     parser.add_argument('--add-cluster', help="Add a new cluster", action=argparse.BooleanOptionalAction)
@@ -49,7 +49,7 @@ def main():
             slurm.download_job(jobname=job.jobname)
         if args.status:
             print(f"Displaying status for job {job}.")
-            print(slurm.status(jobname=job.jobname))
+            print(slurm.status(jobnames=[job.jobname])[0])
         if args.stop:
             print(f"Stopping job {job}.")
             slurm.stop_job(jobname=job.jobname)

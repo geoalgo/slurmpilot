@@ -6,6 +6,7 @@ import re
 import shutil
 import time
 from _socket import gaierror
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -95,6 +96,7 @@ class JobStatus:
     failed: str = "FAILED"
     running: str = "RUNNING"
     cancelled: str = "CANCELLED"
+    out_of_memory: str = "OUT_OF_MEMORY"
 
     def statuses(self):
         return [self.completed, self.pending, self.failed, self.running, self.cancelled]
@@ -136,6 +138,7 @@ class SlurmWrapper:
         config: Config | None = None,
         clusters: List[str] | None = None,
         check_connection: bool = True,
+        display_loaded_configuration: bool = False,
     ):
         if config is not None:
             self.config = config
@@ -151,7 +154,7 @@ class SlurmWrapper:
         self.clusters = clusters
         self.job_scheduling_callback = SlurmSchedulerCallback()
 
-        if check_connection:
+        if display_loaded_configuration:
             self.job_scheduling_callback.on_config_loaded(self.config)
         self.connections = {}
 
@@ -240,7 +243,7 @@ class SlurmWrapper:
         from rich.spinner import Spinner
         starttime = time.time()
         spinner_name = "dots"
-        current_status = self.status(jobname)
+        current_status = self.status([jobname])[0]
         text = f"Waiting job to finish, current status {current_status}"
         wait_interval = 1
         with Live(Spinner(spinner_name, text=Text(text, style="green")), refresh_per_second=5) as live:
@@ -248,7 +251,7 @@ class SlurmWrapper:
             while (
                     current_status in [JobStatus.pending, JobStatus.running] and wait_interval * i < max_seconds
             ):
-                current_status = self.status(jobname)
+                current_status = self.status([jobname])[0]
                 text = (f"Waiting job to finish, current status {current_status} (updated every {wait_interval}s, "
                         f"waited for {int(time.time() - starttime)}s)")
                 live.renderable.update(text=Text(text, style="green"))
@@ -427,70 +430,68 @@ class SlurmWrapper:
                     pass
         return jobs
 
-    def list_jobs_slurm(
-        self,
-        cluster: str | None = None,
-        print_list: bool = True,
-        sacct_format: str | None = None,
-    ) -> List[dict]:
-        """
-        :return: fetch information from Slurm for each job containing JobID,JobName%30,Partition,Elapsed,State%15
-        """
-        rows = []
-        for cluster in self.list_clusters(cluster):
-            if sacct_format is None:
-                sacct_format = "JobName,Elapsed,Partition,start,State"
+    def status(self, jobnames: list[str]) -> list[str | None]:
+        jobnames_statuses = {}
+        jobid_mapping = {}
+        clusters = defaultdict(list)
+        # first, we build a dictionary mapping clusters to job informations
+        for jobname in jobnames:
+            # TODO support having this one missing (
+            jobid = self.jobid_from_jobname(jobname)
+            jobid_mapping[jobid] = jobname
+            job_metadata = self.job_creation_metadata(jobname)
+            cluster = job_metadata.cluster
+            clusters[cluster].append((jobid, job_metadata))
+
+        # second we call sacct on each clusters with the corresponding jobs
+        for cluster in clusters.keys():
+            job_clusters = clusters[cluster]
+            # filter jobs with missing jobid
+            query_jobids = [str(jobid) for (jobid, job_metadata) in job_clusters if jobid is not None]
+            sacct_format = "JobID,Elapsed,start,State"
+
+            # call sacct...
             res = self.connections[cluster].run(
-                f'sacct --format="{sacct_format}" -X -p'
+                f'sacct --format="{sacct_format}" -X -p --jobs={",".join(query_jobids)}'
             )
+
+            # ...and parse output
             lines = res.stdout.split("\n")
             keys = lines[0].split("|")[:-1]
             for line in lines[1:]:
                 if line:
-                    rows.append(dict(zip(keys, line.split("|")[:-1])))
-                    rows[-1]["cluster"] = cluster
-            if print_list:
-                print_table(rows)
-        return rows
-
-    def fetch_status(self, jobs: List[JobMetadata]) -> List[dict]:
-        clusters = list(set(job.cluster for job in jobs))
-        statuses = []
-        for cluster in clusters:
-            statuses += self.list_jobs_slurm(print_list=False, cluster=cluster)
-
-        statuses = {status["JobName"]: status for status in statuses}
-        statuses = [statuses.get(job.jobname) for job in jobs]
-        assert len(jobs) == len(statuses)
-        return statuses
+                    status_dict = dict(zip(keys, line.split("|")[:-1]))
+                    # TODO elapsed time is probably useful too
+                    jobnames_statuses[jobid_mapping[int(status_dict["JobID"])]] = status_dict["State"]
+        return [jobnames_statuses.get(jobname) for jobname in jobnames]
 
     def print_jobs(self, n_jobs: int = 10, max_colwidth: int = 40, status_verbose: bool = True):
         rows = []
         jobs = self.list_jobs(n_jobs)
-        statuses = self.fetch_status(jobs)
+        statuses = self.status(jobnames=[job.jobname for job in jobs])
         for job, status in zip(jobs, statuses):
+            # TODO status when missing jobid.json => error at launching
             if status is None:
-                status_symbol = "❌ Failed launching"
+                status_symbol = "Unknown slurm status 🏝"
             else:
                 status_mapping = {
-                    "OUT_OF_MEMORY": "🤯 OOM",
-                    "FAILED": "❌ Slurm job failed",
-                    "PENDING": "⏳Pending",
-                    "RUNNING": "🏃️Running",
-                    "COMPLETED": "✅ Completed",
-                    "CANCELED": "⚠️Canceled",
+                    JobStatus.out_of_memory: "OOM 🤯",
+                    JobStatus.failed: "Slurm job failed ❌",
+                    JobStatus.pending: "Pending ⏳",
+                    JobStatus.running: "️Running 🏃",
+                    JobStatus.completed: "Completed ✅",
+                    JobStatus.cancelled: "Canceled ⚠️",
                 }
-                if "CANCELED" in status["State"]:
+                if "CANCELED" in status:
                     status_symbol = "⚠️"
                 else:
-                    status_symbol = status_mapping.get(status["State"], f'Unknown state: {status["State"]}')
+                    status_symbol = status_mapping.get(status, f'Unknown state: {status}')
 
             rows.append({
                 "job": Path(job.jobname).name,
                 "date": pd.to_datetime(job.date).strftime("%d/%m/%y-%H:%M"),
                 "cluster": job.job_creation_info.cluster,
-                "status": f"{status_symbol} " if status_verbose else f"{status_symbol[:1]} ",
-                # "exp_id": Path(job.jobname).parent,
+                "status": f"{status_symbol} " if status_verbose else f"{status_symbol[-1:]} ",
                 "full jobname": job.jobname,
             })
         df = pd.DataFrame(rows)
@@ -528,31 +529,7 @@ class SlurmWrapper:
         except FileNotFoundError:
             return ""
 
-    def status(self, jobname: str):
-        """sacct --jobs=11301195 --format=State -X"""
-        cluster = self.job_creation_metadata(jobname).cluster
-        jobid = self.jobid_from_jobname(jobname)
-        res = self.connections[cluster].run(
-            f"sacct --jobs={jobid} --format=State -X -p",
-            retries=3,
-            log_error=False,
-        )
-        stdout = res.stdout
-        # TODO a bit fragile
-        assert "State" in stdout
-        status = res.stdout.split("|")[1].strip("\n")
-        if "CANCELLED" in status:
-            # 'CANCELLED by 25416' -> CANCELLED
-            status = status.split(" ")[0]
-        if len(status) == 0:
-            return JobStatus.pending
-        else:
-            assert (
-                status in JobStatus().statuses()
-            ), f"status {status} not in {JobStatus().statuses()}"
-            return status
-
-    def jobid_from_jobname(self, jobname: str) -> int:
+    def jobid_from_jobname(self, jobname: str) -> int | None:
         # several options are possible:
         # 1) store info in jobname folder
         # 2) runs sacct -X --format=jobname%30,jobid remotely and parse output
@@ -564,8 +541,11 @@ class SlurmWrapper:
         # # "example-j+ 11301527" -> 11301527
         # return int(res.stdout.split(" ")[-1])
         local_path = JobPathLogic(jobname=jobname)
-        with open(local_path.jobid_path(), "r") as f:
-            return json.load(f)["jobid"]
+        if local_path.jobid_path().exists():
+            with open(local_path.jobid_path(), "r") as f:
+                return json.load(f)["jobid"]
+        else:
+            return None
 
     @staticmethod
     def job_creation_metadata(jobname: str) -> JobMetadata:
