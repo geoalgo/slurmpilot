@@ -36,6 +36,9 @@ logging.basicConfig(
 class JobCreationInfo:
     jobname: str
     entrypoint: str | None = None
+    python_binary: str | None = None
+    python_args: str | None = None
+    bash_setup_command: str | None = None  # if specified a bash command that gets executed before the main script
     src_dir: str | None = None
     exp_id: str | None = None
 
@@ -51,6 +54,13 @@ class JobCreationInfo:
     max_runtime_minutes: int = 60  # max runtime in minutes
     account: str = None
     env: dict = None
+
+    def __post_init__(self):
+        if self.python_args:
+            assert self.python_binary
+        if self.python_binary is not None:
+            assert Path(self.entrypoint).suffix == ".py", \
+                f"Must provide a python script ending with .py when using `python_binary` but got {self.entrypoint}."
 
     def check_path(self):
         assert Path(
@@ -89,6 +99,7 @@ class JobCreationInfo:
             res += sbatch_line(f"--time={self.max_runtime_minutes}")
         # res += sbatch_line("--chdir .")
         return res
+
 
 class JobStatus:
     completed: str = "COMPLETED"
@@ -244,8 +255,14 @@ class SlurmWrapper:
         starttime = time.time()
         spinner_name = "dots"
         current_status = self.status([jobname])[0]
-        text = f"Waiting job to finish, current status {current_status}"
         wait_interval = 1
+        i = 0
+        while current_status is None and wait_interval * i < max_seconds:
+            time.sleep(wait_interval)
+            current_status = self.status([jobname])[0]
+            i += 1
+
+        text = f"Waiting job to finish, current status {current_status}"
         with Live(Spinner(spinner_name, text=Text(text, style="green")), refresh_per_second=5) as live:
             i = 0
             while (
@@ -354,9 +371,16 @@ class SlurmWrapper:
             # Add path containing the library to the PYTHONPATH so that they can be imported without requiring
             # the user to add `PYTHONPATH=.` before running scripts, e.g. instead of having to do
             # `PYTHONPATH=. python main.py`, users can simply do `python main.py`
+            if job_info.bash_setup_command:
+                f.write(job_info.bash_setup_command + "\n")
             if job_info.python_libraries:
                 f.write(f"export PYTHONPATH=$PYTHONPATH:{local_job_paths.resolve_path()}\n")
-            f.write(f"bash {local_job_paths.entrypoint_path_from_cwd()}\n")
+            if job_info.python_binary is None:
+                f.write(f"bash {local_job_paths.entrypoint_path_from_cwd()}\n")
+            else:
+                python_args = job_info.python_args if job_info.python_args is not None else ""
+                f.write(f"{job_info.python_binary} {local_job_paths.entrypoint_path_from_cwd()} {python_args}\n")
+
 
     def _save_jobid(self, local_job_paths: JobPathLogic, jobid: int):
         metadata = {

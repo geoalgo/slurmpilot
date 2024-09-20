@@ -38,8 +38,8 @@ jobinfo = JobCreationInfo(
     cluster=cluster,
     jobname=jobname,
     python_args="--learning_rate 1e-3 --batch_size 32",
-    python_main=str(root_dir / "script" / "main_python.py"),
-    python_bin="/home/XXX/YYY/bin/python",
+    entrypoint=str(root_dir / "script" / "main_python.py"),
+    python_binary="/home/XXX/YYY/bin/python",
     python_libraries=[str(root_dir / "custom_library")],
     partition=partition,
     n_cpus=1,
@@ -51,6 +51,7 @@ jobid = SlurmWrapper(clusters=[cluster]).schedule_job(jobinfo)
 ```
 
 Note:
+* we can infer that we are using python when passing a file whose extension is `.py`
 * we could also support passing a dictionary of arguments for `python_args`
 * we could support passing a list of bash to be executed before the script (this could let the user source environments)
 
