@@ -150,6 +150,7 @@ remote_path: "slurmpilot/"
 * TBD: chain of jobs
 
 **DONE**
+* high: support python wrapper
 * medium/high: list jobs
 * high: support subfolders for experiment files
 * medium: add support to add cluster from CLI
