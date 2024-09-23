@@ -33,7 +33,7 @@ def unify(name: str, method: str = "date") -> str:
 
         suffix = generate_slug()
     else:
-        suffix = time.strftime("%Y%m%d-%H%M%S")
+        suffix = time.strftime("%Y-%m-%d-%H-%M-%S")
     return name + "-" + suffix
 
 

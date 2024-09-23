@@ -38,7 +38,10 @@ class JobCreationInfo:
     jobname: str
     entrypoint: str | None = None
     python_binary: str | None = None
-    python_args: str | None = None
+
+    # arguments to be passed to python script, if dictionary then arguments
+    # are converted to string with `--key=value` for all key, values of the dictionary
+    python_args: str | dict | None = None
     bash_setup_command: str | None = (
         None  # if specified a bash command that gets executed before the main script
     )
@@ -296,7 +299,7 @@ class SlurmWrapper:
 
         text = f"Waiting job to finish, current status {current_status}"
         with Live(
-            Spinner(spinner_name, text=Text(text, style="green")), refresh_per_second=5
+            Spinner(spinner_name, text=Text(text)),
         ) as live:
             i = 0
             while (
@@ -308,7 +311,7 @@ class SlurmWrapper:
                     f"Waiting job to finish, current status {current_status} (updated every {wait_interval}s, "
                     f"waited for {int(time.time() - starttime)}s)"
                 )
-                live.renderable.update(text=Text(text, style="green"))
+                live.renderable.update(text=Text(text))
                 time.sleep(
                     wait_interval
                 )  # todo exponential backoff to avoid QOS issues
@@ -437,6 +440,10 @@ class SlurmWrapper:
                 python_args = (
                     job_info.python_args if job_info.python_args is not None else ""
                 )
+                if isinstance(python_args, dict):
+                    python_args = " ".join(
+                        f"--{key}={value}" for key, value in python_args.items()
+                    )
                 f.write(
                     f"{job_info.python_binary} {local_job_paths.entrypoint_path_from_cwd()} {python_args}\n"
                 )
@@ -574,7 +581,7 @@ class SlurmWrapper:
         return [jobnames_statuses.get(jobname) for jobname in jobnames]
 
     def print_jobs(
-        self, n_jobs: int = 10, max_colwidth: int = 40, status_verbose: bool = True
+        self, n_jobs: int = 10, max_colwidth: int = 50, status_verbose: bool = True
     ):
         rows = []
         jobs = self.list_jobs(n_jobs)
