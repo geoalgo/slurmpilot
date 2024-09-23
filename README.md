@@ -1,14 +1,15 @@
 # Slurmpilot
 
-Slurmpilot is a python library to launch experiments in Slurm from the comfort of your local machine.
-The library aims to take care of things such as sending remote code for execution, calling slurm, finding good places to write logs and accessing status from your jobs.
+Slurmpilot is a python library to launch experiments in Slurm on any cluster from the comfort of your local machine.
+The library aims to take care of things such as sending remote code for execution, calling slurm, 
+finding good places to write logs and accessing status from your jobs.
 
 The key features are:
 * simplify job creation, improve reproducibility and allow launching slurm jobs from your machine
 * allows to easily list experiments, logs or show status and stop jobs 
 * easy switch between cluster by just providing different config files
 
-Essentially we want to make it **much** easier and faster for user to run experiments on Slurm and reach the quality of cloud usage.
+Essentially we want to make it much easier and faster for user to run experiments on Slurm and reach the quality of cloud usage.
 
 Important note: Right now, the library is very much work in progress. It is usable (I am using it for all my experiments) but the documentation is yet to be made and API has not been frozen yet.
 
@@ -100,27 +101,56 @@ When scheduling a job, the files required to run it are first copied to `~/slurm
 sent to the remote host to `~/slurmpilot/jobs/YOUR_JOB_NAME` (those defaults paths are modifiable).
 
 In particular, the following files are generated locally under `~/slurmpilot/jobs/YOUR_JOB_NAME`:
+* `slurm_script.sh`: a slurm script automatically generated from your options that is executed on the remote node with sbatch
 * `metadata.json`: contains metadata such as time and the configuration of the job that was scheduled
 * `jobid.json`: contains the slurm jobid obtained when scheduling the job, if this step was successful
-* `slurm_script.sh`: a slurm script automatically generated from your options that is executed on the remote node with sbatch
 * `src_dir`: the folder containing the entrypoint
 * `{src_dir}/entrypoint`: the entrypoint to be executed
 
 On the remote host, the logs are written under `logs/stderr` and `logs/stdout` and the current working dir is also 
 `~/slurmpilot/jobs/YOUR_JOB_NAME` unless overwritten in `general.yaml` config (see `Other ways to specify configurations` section).
 
+
+### Scheduling python jobs
+
+If you want to schedule directly a Python jobs, you can also do:
+
+```python
+jobinfo = JobCreationInfo(
+    cluster=cluster,
+    partition=partition,
+    jobname=jobname,
+    entrypoint="main_hello_cluster.py",
+    python_args="--argument1 dummy",
+    python_binary="~/miniconda3/bin/python",
+    n_cpus=1,
+    max_runtime_minutes=60,
+    # Shows how to pass an environment variable to the running script
+    env={"API_TOKEN": "DUMMY"},
+)
+jobid = slurm.schedule_job(jobinfo)
+```
+
+This will create a sbatch script as in the previous example but this time, it will call directly your python script
+with the binary and the arguments provided, you can see the full example
+[launch_hellocluster_python.py](examples%2Fhellocluster-python%2Flaunch_hellocluster_python.py). 
+Note that you can also set `bash_setup_command` which allows to run some command before 
+calling your python script (for instance to setup the environment, activate conda, setup a server ...).
+
+
 ## FAQ/misc
 
-*Developer setup.*
+**Developer setup.**
 If you want to develop features, run the following:
 ```bash
 git clone https://github.com/geoalgo/slurmpilot.git
 cd slurmpilot
-pip install -e ".[dev]" 
+pip install -e ".[dev]"
+pre-commit install 
+pre-commit autoupdate 
 ```
 
-*Global configuration.*
-
+**Global configuration.**
 You can specify global properties by writing `~/slurmpilot/config/general.yaml`
 and edit the following:
 ```
@@ -130,6 +160,15 @@ local_path: "~/slurmpilot"
 # default path where slurmpilot job files are generated on the remote machine, Note: "~" cannot be used
 remote_path: "slurmpilot/"
 ```
+
+**Why do you rely on SSH?**
+A typical workflow for Slurm user is to send their code to a remote machine and call sbatch there. We rather
+work with ssh from a machine (typically the developer) machine because we want to be able to switch to several cluster
+without hassle.
+
+**Why don't you rely on docker?** 
+Docker is a great option and is being used in similar tools built for the cloud such as Skypilot, SageMaker, ...
+However, running docker in Slurm is often not an option due to difficulties to run without root privileges.
 
 **TODOs**
 * high: explain examples in readme
@@ -185,13 +224,3 @@ remote_path: "slurmpilot/"
 * stop job
 
 
-## North star / ideas
-Support similar configs as skypilot, also 
-https://github.com/skypilot-org/skypilot/blob/master/examples/huggingface_glue_imdb_app.yaml
-
-e.g. would need to support:
-* sky launch cluster.yaml
-* sky status
-* sky down XXX
-* ssh XXX
-* sky queue XXX "ls"
