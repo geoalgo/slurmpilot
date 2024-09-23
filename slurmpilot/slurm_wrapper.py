@@ -14,6 +14,7 @@ from typing import NamedTuple, List, Tuple
 import traceback
 
 import pandas as pd
+import paramiko
 from invoke import UnexpectedExit
 from paramiko.ssh_exception import AuthenticationException
 
@@ -59,7 +60,10 @@ class JobCreationInfo:
 
     def __post_init__(self):
         if self.python_args:
-            assert self.python_binary
+            if self.python_binary is None:
+                logging.warning(
+                    f"Python binary not set but passing `python_args`: {self.python_args}."
+                )
         if self.python_binary is not None:
             assert (
                 Path(self.entrypoint).suffix == ".py"
@@ -536,30 +540,37 @@ class SlurmWrapper:
 
         # second we call sacct on each clusters with the corresponding jobs
         for cluster in clusters.keys():
-            job_clusters = clusters[cluster]
-            # filter jobs with missing jobid
-            query_jobids = [
-                str(jobid)
-                for (jobid, job_metadata) in job_clusters
-                if jobid is not None
-            ]
-            sacct_format = "JobID,Elapsed,start,State"
+            try:
+                job_clusters = clusters[cluster]
+                # filter jobs with missing jobid
+                query_jobids = [
+                    str(jobid)
+                    for (jobid, job_metadata) in job_clusters
+                    if jobid is not None
+                ]
+                sacct_format = "JobID,Elapsed,start,State"
 
-            # call sacct...
-            res = self.connections[cluster].run(
-                f'sacct --format="{sacct_format}" -X -p --jobs={",".join(query_jobids)}'
-            )
+                # call sacct...
+                res = self.connections[cluster].run(
+                    f'sacct --format="{sacct_format}" -X -p --jobs={",".join(query_jobids)}'
+                )
 
-            # ...and parse output
-            lines = res.stdout.split("\n")
-            keys = lines[0].split("|")[:-1]
-            for line in lines[1:]:
-                if line:
-                    status_dict = dict(zip(keys, line.split("|")[:-1]))
-                    # TODO elapsed time is probably useful too
-                    jobnames_statuses[jobid_mapping[int(status_dict["JobID"])]] = (
-                        status_dict["State"]
-                    )
+                # ...and parse output
+                lines = res.stdout.split("\n")
+                keys = lines[0].split("|")[:-1]
+                for line in lines[1:]:
+                    if line:
+                        status_dict = dict(zip(keys, line.split("|")[:-1]))
+                        # TODO elapsed time is probably useful too
+                        jobnames_statuses[jobid_mapping[int(status_dict["JobID"])]] = (
+                            status_dict["State"]
+                        )
+            # TODO abstract it
+            except paramiko.ssh_exception.AuthenticationException as e:
+                logging.warning(
+                    f"Could not connect to cluster {cluster}, make sure your ssh connection works."
+                )
+                continue
         return [jobnames_statuses.get(jobname) for jobname in jobnames]
 
     def print_jobs(
