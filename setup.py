@@ -6,6 +6,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "pyyaml",
+        "pandas",
         "fabric",
     ],
     extras_require={
