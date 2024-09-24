@@ -181,8 +181,8 @@ However, running docker in Slurm is often not an option due to difficulties to r
 * medium: generates animation of demo in readme.md
 * medium: allow to stop all jobs in CLI
 * medium: allow to submit list of jobs until all executed
-* medium: support numerating suffix "-1", "-2" instead of random names
 * medium: rename SlurmWrapper to SlurmPilot
+* low: support numerating suffix "-1", "-2" instead of random names
 * low: doc for handling python dependencies
 * low: remove logging info ssh
 * low: allow to share common folders to avoid sending code lots of times, probably do a doc example

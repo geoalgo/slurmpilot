@@ -10,11 +10,12 @@ setup(
     ],
     extras_require={
         "dev": ["pytest", "black", "pre-commit"],
-        "extra": ["coolname", 'rich'],
+        "extra": ["coolname", "rich"],
     },
     entry_points={
         "console_scripts": [
             "slurmpilot=slurmpilot.cli:main",
+            "sp=slurmpilot.cli:main",
         ],
     },
 )
