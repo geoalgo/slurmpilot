@@ -137,6 +137,36 @@ with the binary and the arguments provided, you can see the full example
 Note that you can also set `bash_setup_command` which allows to run some command before 
 calling your python script (for instance to setup the environment, activate conda, setup a server ...).
 
+### CLI
+
+Slurmpilot provides a CLI which allows to:
+* display log of a job
+* list information about a list of jobs in a table
+* stop a job
+* download the artifact of a job locally
+* show the status of a particular job
+* add a cluster
+* test ssh connection of the list of configured clusters
+
+After installing slurmpilot, you can run the following to get help on how to use those commands.
+
+```bash
+sp --help
+```
+For instance, running `sp --list-jobs 5` will display informations of the past 5 jobs as follows:
+```
+                                         job           date    cluster                 status                                       full jobname
+    v2-loop-judge-option-2024-09-24-16-47-36 24/09/24-16:47   clusterX    Pending ⏳           judge-tuning-v0/v2-loop-judge-option-2024-09-24...
+    v2-loop-judge-option-2024-09-24-16-47-30 24/09/24-16:47   clusterX    Pending ⏳           judge-tuning-v0/v2-loop-judge-option-2024-09-24...
+job-arboreal-foxhound-of-splendid-domination 24/09/24-12:54   clusterY    Completed ✅         examples/hello-cluster-python/job-arboreal-foxh...
+    v2-loop-judge-option-2024-09-23-18-01-36 23/09/24-18:01   clusterX    CANCELLED by 975941  judge-tuning-v0/v2-loop-judge-option-2024-09-23...
+    v2-loop-judge-option-2024-09-23-18-00-49 23/09/24-18:00   clusterZ    Slurm job failed ❌  judge-tuning-v0/v2-loop-judge-option-2024-09-23...
+```
+
+Note that listing jobs requires the ssh connection to work with every cluster since Slurm will be queried to know the
+current status, if cluster is unavailable because the ssh credentials expired for instance then a place holder status 
+will be shown.
+
 
 ## FAQ/misc
 
@@ -172,7 +202,6 @@ However, running docker in Slurm is often not an option due to difficulties to r
 
 **TODOs**
 * high: explain examples in readme
-* high: add unit test actions
 * medium: suppress connection print output of fabrik (happens at connection, not when running commands)
 * medium: discuss getting out of your way philosophy of the tool
 * medium: make script execution independent of cwd and dump variable to enforce reproducibility
@@ -189,6 +218,8 @@ However, running docker in Slurm is often not an option due to difficulties to r
 * TBD: chain of jobs
 
 **DONE**
+* high: add description of CLI in readme.md
+* high: add unit test actions
 * high: support python wrapper
 * medium/high: list jobs
 * high: support subfolders for experiment files
