@@ -202,6 +202,7 @@ However, running docker in Slurm is often not an option due to difficulties to r
 
 **TODOs**
 * high: explain examples in readme
+* high: better support to launch series of experiments
 * medium: suppress connection print output of fabrik (happens at connection, not when running commands)
 * medium: discuss getting out of your way philosophy of the tool
 * medium: make script execution independent of cwd and dump variable to enforce reproducibility
@@ -211,6 +212,8 @@ However, running docker in Slurm is often not an option due to difficulties to r
 * medium: allow to stop all jobs in CLI
 * medium: allow to submit list of jobs until all executed
 * medium: rename SlurmWrapper to SlurmPilot
+* medium: rerun/restart job (useful in case of transient error)
+* medium: download in batch
 * low: support numerating suffix "-1", "-2" instead of random names
 * low: doc for handling python dependencies
 * low: remove logging info ssh

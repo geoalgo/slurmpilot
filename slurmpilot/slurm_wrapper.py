@@ -37,11 +37,7 @@ logging.basicConfig(
 class JobCreationInfo:
     jobname: str
     entrypoint: str | None = None
-    python_binary: str | None = None
 
-    # arguments to be passed to python script, if dictionary then arguments
-    # are converted to string with `--key=value` for all key, values of the dictionary
-    python_args: str | dict | None = None
     bash_setup_command: str | None = (
         None  # if specified a bash command that gets executed before the main script
     )
@@ -49,6 +45,15 @@ class JobCreationInfo:
     exp_id: str | None = None
 
     sbatch_arguments: str | None = None  # argument to be passed to sbatch
+
+    # python
+    python_binary: str | None = None
+    # arguments to be passed to python script, if dictionary then arguments
+    # are converted to string with `--key=value` for all key, values of the dictionary
+    python_args: str | dict | None = None
+    # path existing remotely to be included in PYTHONPATH so that they can be imported in python
+    python_paths: list[str] | None = None
+    # python libraries existing locally to be sent to the remote and added to the PYTHONPATH
     python_libraries: List[str] | None = None
 
     # ressources
@@ -253,9 +258,10 @@ class SlurmWrapper:
         # call sbatch remotely
         if not dryrun:
             jobid = self._call_sbatch_remotely(
-                cluster_connection,
-                local_job_paths,
-                remote_job_paths,
+                cluster_connection=cluster_connection,
+                local_job_paths=local_job_paths,
+                remote_job_path=remote_job_paths,
+                job_info=job_info,
                 sbatch_env=job_info.env if job_info.env else {},
                 sbatch_arg=job_info.sbatch_arguments,
             )
@@ -320,12 +326,17 @@ class SlurmWrapper:
 
     def _call_sbatch_remotely(
         self,
+        job_info: JobCreationInfo,
         cluster_connection: RemoteExecution,
         local_job_paths: JobPathLogic,
         remote_job_path: JobPathLogic,
         sbatch_env: dict,
         sbatch_arg: str | None,
     ) -> int:
+        if not sbatch_env:
+            sbatch_env = {}
+        # TODO design and document SP env that are passed
+        sbatch_env["SP_JOBNAME"] = job_info.jobname
         # call sbatch remotely and returns slurm job id if successful
         if sbatch_env:
             # pass environment variable to sbatch in the following form:
@@ -334,8 +345,6 @@ class SlurmWrapper:
             export_env += ",".join(
                 f"{var_name}={var_value}" for var_name, var_value in sbatch_env.items()
             )
-        else:
-            export_env = ""
         try:
             # TODO make those idempotent,
             #  running `sbatch slurm_script.sh` or `sbatch path_to_script/slurm_script.sh`
@@ -430,10 +439,14 @@ class SlurmWrapper:
             # `PYTHONPATH=. python main.py`, users can simply do `python main.py`
             if job_info.bash_setup_command:
                 f.write(job_info.bash_setup_command + "\n")
+
+            # add library to PYTHONPATH
+            libraries = [str(local_job_paths.resolve_path())]
+            if job_info.python_paths is not None:
+                libraries += job_info.python_paths
             if job_info.python_libraries:
-                f.write(
-                    f"export PYTHONPATH=$PYTHONPATH:{local_job_paths.resolve_path()}\n"
-                )
+                libraries += job_info.python_libraries
+            f.write(f'export PYTHONPATH=$PYTHONPATH:{":".join(libraries)}\n')
             if job_info.python_binary is None:
                 f.write(f"bash {local_job_paths.entrypoint_path_from_cwd()}\n")
             else:
@@ -488,7 +501,14 @@ class SlurmWrapper:
             print(f"stdout:\n{stdout}")
 
     @staticmethod
-    def latest_job(config: Config | None = None) -> JobMetadata:
+    def latest_job(
+        config: Config | None = None, pattern: str | None = None
+    ) -> JobMetadata:
+        """
+        :param config:
+        :param pattern: if passed, then consider only jobs whose name contains `pattern`
+        :return:
+        """
         if config is None:
             config = load_config()
         files = list(
@@ -496,6 +516,9 @@ class SlurmWrapper:
             .expanduser()
             .rglob("metadata.json")
         )
+        if pattern is not None:
+            # Search for job that matches the patter given
+            files = [x for x in files if pattern in str(x)]
         if len(files) > 0:
             latest_file = max(files, key=lambda item: item.stat().st_ctime)
             with open(latest_file, "r") as f:
@@ -599,8 +622,8 @@ class SlurmWrapper:
                     JobStatus.completed: "Completed ✅",
                     JobStatus.cancelled: "Canceled ⚠️",
                 }
-                if "CANCELED" in status:
-                    status_symbol = "⚠️"
+                if "CANCELLED" in status:
+                    status_symbol = "Cancelled ⚠️"
                 else:
                     status_symbol = status_mapping.get(
                         status, f"Unknown state: {status}"

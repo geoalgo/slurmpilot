@@ -1,4 +1,5 @@
 import logging
+import socket
 import subprocess
 import tempfile
 import time
@@ -33,7 +34,9 @@ class RemoteExecution:
         self.proxy = proxy
         self.user = user
 
-    def run(self, command: str, pty: bool = False, env: dict | None = None, retries: int = 0) -> CommandResult:
+    def run(
+        self, command: str, pty: bool = False, env: dict | None = None, retries: int = 0
+    ) -> CommandResult:
         raise NotImplementedError()
 
     def upload_file(self, local_path: Path, remote_path: Path = Path("/")):
@@ -50,11 +53,24 @@ class RemoteExecution:
 
 
 class LocalCommandExecution(RemoteExecution):
-    def __init__(self, master: str, user: str | None = None, proxy: str | None = None, folder: str | None = None):
+    def __init__(
+        self,
+        master: str,
+        user: str | None = None,
+        proxy: str | None = None,
+        folder: str | None = None,
+    ):
         super().__init__(master=master, proxy=proxy, user=user)
         self.folder = folder
 
-    def run(self, command: str, pty: bool = False, env: dict | None = None, retries: int = 0, log_error: bool = True) -> CommandResult:
+    def run(
+        self,
+        command: str,
+        pty: bool = False,
+        env: dict | None = None,
+        retries: int = 0,
+        log_error: bool = True,
+    ) -> CommandResult:
         # TODO evaluate command with subprocess like in syne tune
         raise NotImplementedError()
 
@@ -79,28 +95,52 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
     # TODO we could create a dependency free version with `getstatusoutput` that calls ssh command
     def __init__(self, master: str, user: str | None = None, proxy: str | None = None):
         super().__init__(master=master, proxy=proxy, user=user)
+        logging.getLogger("fabric").setLevel(logging.WARNING)
+        logging.getLogger("paramiko").setLevel(logging.WARNING)
+
         from fabric import Connection
+
         self.connection = Connection(
             self.master,
             user=user,
             gateway=None if not proxy else Connection(proxy),
         )
 
-    def run(self, command: str, pty: bool = False, env: dict | None = None, retries: int = 0, log_error: bool = True) -> CommandResult:
+    def run(
+        self,
+        command: str,
+        pty: bool = False,
+        env: dict | None = None,
+        retries: int = 0,
+        log_error: bool = True,
+    ) -> CommandResult:
         success = False
         num_trial = 1 + retries
         while not success and num_trial > 0:
             try:
-                fabric_result = self.connection.run(command=command, hide=True, pty=pty, env=env, )
+                fabric_result = self.connection.run(
+                    command=command,
+                    hide=True,
+                    pty=pty,
+                    env=env,
+                )
                 success = not fabric_result.failed
                 # TODO show error when failed
                 if fabric_result.failed:
                     if log_error:
-                        logging.debug(f"Command {command} failed\n{fabric_result.stderr}")
+                        logging.debug(
+                            f"Command {command} failed\n{fabric_result.stderr}"
+                        )
             except paramiko.ssh_exception.ChannelException as e:
                 if log_error:
-                    logging.debug(f"Command {command} failed because of connection issue {str(e)}")
-                continue
+                    logging.debug(
+                        f"Command {command} failed because of connection issue {str(e)}"
+                    )
+            except socket.gaierror as e:
+                logging.error(str(e))
+                raise ValueError(
+                    f"Could not connect to hostname {self.master}, check your ssh connection."
+                )
             if not success:
                 time.sleep(1)
                 num_trial -= 1
@@ -113,7 +153,9 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
                 stdout=fabric_result.stdout,
             )
         else:
-            raise ValueError(f"Command {command} did not succeed after {retries} trial, consider increasing `retries` argument.")
+            raise ValueError(
+                f"Command {command} did not succeed after {retries} trial, consider increasing `retries` argument."
+            )
 
     def upload_file(self, local_path: Path, remote_path: Path = Path("/")):
         # TODO consider using rsync which is supported in Fabric,
@@ -167,7 +209,9 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
         # Note, we could also tar the whole thing like we do to send, the reason we pick rsync is that often
         # some files will only be present and rsync allows to not copy those based on hashes
         logger.info(f"Running rsync from {remote_path} to {local_path}")
-        command = f"rsync -aPvz {self.user}@{self.master}:{remote_path} {local_path.parent}"
+        command = (
+            f"rsync -aPvz {self.user}@{self.master}:{remote_path} {local_path.parent}"
+        )
         subprocess.run(command.split(" "), check=True)
 
 
