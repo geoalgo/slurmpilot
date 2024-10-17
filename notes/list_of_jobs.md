@@ -30,11 +30,15 @@ jobinfo = JobCreationInfo(
     python_args=[f"--learning_rate {learning_rate} --batch_size 32" for learning_rate in [1e-3, 1e-2, 1e-1]],
     python_libraries=[str(root_dir / "custom_library")],
     src_dir="./",
+    jobname="fine-tune-mlp",
     ...
 )
 jobid = SlurmWrapper(clusters=[cluster]).schedule_job(jobinfo)
 ```
-and take care to send multiple jobs while sharing the code only once. It would be nice to be able to restart
-failed jobs from a list (in case of transient errors).
+The following should:
+* send the code only once
+* use a naming grouping strategy so that jobs are either called: "fine-tune-mlp-1", "fine-tune-mlp-2", ... or "fine-tune-mlp/1", "fine-tune-mlp/2", ...
+
+It would be nice to be able to restart failed jobs from a list (in case of transient errors).
 
 We could also expose another function to schedule a list of jobs.
