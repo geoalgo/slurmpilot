@@ -29,6 +29,9 @@ class SlurmSchedulerCallback(SlurmSchedulerCallbackInterface):
             format_pattern = self.format_cluster
         return f"\x1b[{format_pattern}m{s}\x1b[0m"
 
+    def format_string_jobname(self, message: str, jobname: str) -> str:
+        return f"{message} {self.format(jobname, self.format_jobname)}."
+
     def on_job_scheduled_start(self, cluster: str, jobname: str):
         print(
             f"Starting job {self.format(jobname, self.format_jobname)} on {self.format(cluster, self.format_cluster)}."

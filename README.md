@@ -203,7 +203,6 @@ However, running docker in Slurm is often not an option due to difficulties to r
 **TODOs**
 * high: explain examples in readme
 * high: better support to launch series of experiments
-* medium: suppress connection print output of fabrik (happens at connection, not when running commands)
 * medium: discuss getting out of your way philosophy of the tool
 * medium: make script execution independent of cwd and dump variable to enforce reproducibility
 * medium: support local execution, see `notes/running_locally.md`
@@ -221,6 +220,7 @@ However, running docker in Slurm is often not an option due to difficulties to r
 * TBD: chain of jobs
 
 **DONE**
+* medium: suppress connection print output of fabrik (happens at connection, not when running commands)
 * high: add description of CLI in readme.md
 * high: add unit test actions
 * high: support python wrapper

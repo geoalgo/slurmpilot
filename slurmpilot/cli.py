@@ -24,11 +24,6 @@ def jobname_from_cli_args_or_take_latest(args):
         return job_metadata
 
 
-def format_string_jobname(message: str, jobname: str) -> str:
-    format_jobname = "1;31;38"
-    return f"{message} \033[{format_jobname}m{jobname}\033[0m."
-
-
 def main():
     parser = argparse.ArgumentParser(
         prog="Slurmpilot CLI",
@@ -90,16 +85,16 @@ def main():
         # TODO use match
         if args.log:
 
-            print(format_string_jobname("Displaying log for job", job.jobname))
+            print(slurm.format_string_jobname("Displaying log for job", job.jobname))
             slurm.print_log(jobname=job.jobname)
         if args.download:
-            print(format_string_jobname("Downloading job", job.jobname))
+            print(slurm.format_string_jobname("Downloading job", job.jobname))
             slurm.download_job(jobname=job.jobname)
         if args.status:
-            print(format_string_jobname("Displaying status for job", job.jobname))
+            print(slurm.format_string_jobname("Displaying status for job", job.jobname))
             print(slurm.status(jobnames=[job.jobname])[0])
         if args.stop:
-            print(format_string_jobname("Stopping job", job.jobname))
+            print(slurm.format_string_jobname("Stopping job", job.jobname))
             slurm.stop_job(jobname=job.jobname)
     else:
         if args.test_ssh_connections:

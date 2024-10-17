@@ -126,6 +126,7 @@ class JobStatus:
     failed: str = "FAILED"
     running: str = "RUNNING"
     cancelled: str = "CANCELLED"
+    timeout: str = "TIMEOUT"
     out_of_memory: str = "OUT_OF_MEMORY"
 
     def statuses(self):
@@ -590,11 +591,15 @@ class SlurmWrapper:
                 keys = lines[0].split("|")[:-1]
                 for line in lines[1:]:
                     if line:
-                        status_dict = dict(zip(keys, line.split("|")[:-1]))
-                        # TODO elapsed time is probably useful too
-                        jobnames_statuses[jobid_mapping[int(status_dict["JobID"])]] = (
-                            status_dict["State"]
-                        )
+                        try:
+                            status_dict = dict(zip(keys, line.split("|")[:-1]))
+                            # TODO elapsed time is probably useful too
+                            jobnames_statuses[
+                                jobid_mapping[int(status_dict["JobID"])]
+                            ] = status_dict.get("State", "missing")
+                        except Exception as e:
+                            print(line, str(e))
+                            continue
             # TODO abstract it
             except paramiko.ssh_exception.AuthenticationException as e:
                 logging.warning(
@@ -715,3 +720,6 @@ class SlurmWrapper:
         )
         with open(local_path.metadata_path(), "w") as f:
             f.write(metadata.to_json())
+
+    def format_string_jobname(self, message: str, jobname: str) -> str:
+        return self.job_scheduling_callback.format_string_jobname(message, jobname)
