@@ -3,8 +3,9 @@ import socket
 import subprocess
 import tempfile
 import time
+from dataclasses import dataclass
+from getpass import getpass
 from pathlib import Path
-from typing import NamedTuple, Optional
 import tarfile
 
 import paramiko
@@ -12,7 +13,8 @@ import paramiko
 logger = logging.getLogger(__name__)
 
 
-class CommandResult(NamedTuple):
+@dataclass
+class CommandResult:
     command: str
     failed: bool
     stderr: str
@@ -93,18 +95,42 @@ class LocalCommandExecution(RemoteExecution):
 
 class RemoteCommandExecutionFabrik(RemoteExecution):
     # TODO we could create a dependency free version with `getstatusoutput` that calls ssh command
-    def __init__(self, master: str, user: str | None = None, proxy: str | None = None):
+    def __init__(
+        self,
+        master: str,
+        user: str | None = None,
+        proxy: str | None = None,
+        prompt_for_login_password: bool = False,
+        prompt_for_login_passphrase: bool = False,
+    ):
+        from fabric import Connection
+
         super().__init__(master=master, proxy=proxy, user=user)
         logging.getLogger("fabric").setLevel(logging.WARNING)
         logging.getLogger("paramiko").setLevel(logging.WARNING)
-
-        from fabric import Connection
-
+        if prompt_for_login_passphrase or prompt_for_login_password:
+            connect_kwargs = {}
+            if prompt_for_login_password:
+                prompt = "Enter login password for SSH auth: "
+                connect_kwargs["password"] = getpass(prompt)
+            if prompt_for_login_passphrase:
+                prompt = "Enter passphrase for unlocking SSH keys: "
+                connect_kwargs["passphrase"] = getpass(prompt)
+        else:
+            connect_kwargs = {}
         self.connection = Connection(
             self.master,
             user=user,
             gateway=None if not proxy else Connection(proxy),
+            connect_kwargs=connect_kwargs,
         )
+        # follow the same procedure as in fabric main to set the connect_kwargs which feels awkward,
+        # we can consider using another library or direct use of ssh through multiprocessing.
+        # https://github.com/fabric/fabric/blob/main/fabric/main.py#L151
+        self.connection.config._overrides["connect_kwargs"] = connect_kwargs
+        # Since we gave merge=False above, we must do it ourselves here. (Also
+        # allows us to 'compile' our overrides manipulation.)
+        self.connection.config.merge()
 
     def run(
         self,
@@ -216,5 +242,11 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
 
 
 if __name__ == "__main__":
-    connection = (RemoteCommandExecutionFabrik("slurm_master"),)  # proxy="proxy")
-    connection.send("check", remote_path="yo/")
+    connection = RemoteCommandExecutionFabrik(
+        master="YOURCLUSTER",
+        user="YOURUSER",
+        prompt_for_login_password=True,
+        prompt_for_passphrase=False,
+    )
+
+    print(connection.run("ls"))

@@ -51,6 +51,10 @@ user: username2
 account: "AN_ACCOUNT"  
 # optional, allow to avoid the need to specify the partition
 default_partition: "NAME_OF_PARTITION_TO_BE_USED_BY_DEFAULT"
+# optional (default to false), whether you should be prompted to use a login password for ssh
+prompt_for_login_password: true 
+# optional (default to false), whether you should be prompted to use a login passphrase for ssh
+prompt_for_login_passphrase: false
 ```
 
 In addition, you can configure `~/slurmpilot/config/general.yaml` with the following:
@@ -204,6 +208,7 @@ However, running docker in Slurm is often not an option due to difficulties to r
 * high: explain examples in readme
 * high: better support to launch series of experiments
 * medium: discuss getting out of your way philosophy of the tool
+* medium: report runtime in sp --list_jobs
 * medium: make script execution independent of cwd and dump variable to enforce reproducibility
 * medium: support local execution, see `notes/running_locally.md`
 * medium: allow to copy only python files (or as skypilot keep only files .gitignore)
@@ -215,11 +220,12 @@ However, running docker in Slurm is often not an option due to difficulties to r
 * medium: download in batch
 * low: support numerating suffix "-1", "-2" instead of random names
 * low: doc for handling python dependencies
-* low: remove logging info ssh
 * low: allow to share common folders to avoid sending code lots of times, probably do a doc example
 * TBD: chain of jobs
 
 **DONE**
+* high: support password and passphrase for ssh
+* low: remove logging info ssh
 * medium: suppress connection print output of fabrik (happens at connection, not when running commands)
 * high: add description of CLI in readme.md
 * high: add unit test actions

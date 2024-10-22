@@ -35,11 +35,15 @@ class ClusterConfig:
     account: str | None = None
     user: str | None = None
     default_partition: str | None = None
+    prompt_for_login_passphrase: bool = False  # whether to prompt for ssh passphrase
+    prompt_for_login_password: bool = False  # whether to prompt for ssh password
 
 
 class Config:
     def __init__(
-        self, general_config: GeneralConfig | None = None, cluster_configs: Dict[str, ClusterConfig] | None = None,
+        self,
+        general_config: GeneralConfig | None = None,
+        cluster_configs: Dict[str, ClusterConfig] | None = None,
     ):
         self.general_config = general_config
         self.cluster_configs = cluster_configs if cluster_configs is not None else {}
@@ -64,7 +68,9 @@ class Config:
             clusters = self.cluster_configs.keys()
         for cluster in clusters:
             with open(path / "clusters" / f"{cluster}.yaml", "w") as f:
-                dict_without_none = {k: v for k, v in self.cluster_configs[cluster].__dict__.items() if v}
+                dict_without_none = {
+                    k: v for k, v in self.cluster_configs[cluster].__dict__.items() if v
+                }
                 yaml.dump(dict_without_none, f)
 
     def __str__(self):
@@ -97,6 +103,7 @@ def load_cluster_config(path: Path) -> ClusterConfig:
     else:
         return None
 
+
 def load_general_config(path: Path) -> GeneralConfig:
     if path.exists():
         args = load_yaml(path)
@@ -117,10 +124,16 @@ def load_config(user_path: Path | None = None) -> Config:
 
     general_config = user_config.general_config
     if general_config is None:
-        general_config = GeneralConfig(local_path="~/slurmpilot", remote_path="slurmpilot/")
+        general_config = GeneralConfig(
+            local_path="~/slurmpilot", remote_path="slurmpilot/"
+        )
 
-    logger.info(f"Loaded cluster configurations {list(user_config.cluster_configs.keys())}.")
-    return Config(general_config=general_config, cluster_configs=user_config.cluster_configs)
+    logger.info(
+        f"Loaded cluster configurations {list(user_config.cluster_configs.keys())}."
+    )
+    return Config(
+        general_config=general_config, cluster_configs=user_config.cluster_configs
+    )
 
 
 def default_cluster_and_partition(user_path: Path | None = None) -> Tuple[str, str]:
@@ -143,11 +156,13 @@ def default_cluster_and_partition(user_path: Path | None = None) -> Tuple[str, s
         partition = config.cluster_configs[cluster].default_partition
     else:
         cluster = config.general_config.default_cluster
-        assert cluster is not None,\
-            ("To be able to use a default cluster, you need to set the environment variable $SP_DEFAULT_CLUSTER to the "
-             "desired cluster or alternatively to add `default_cluster` to general.yaml")
+        assert cluster is not None, (
+            "To be able to use a default cluster, you need to set the environment variable $SP_DEFAULT_CLUSTER to the "
+            "desired cluster or alternatively to add `default_cluster` to general.yaml"
+        )
         partition = config.cluster_configs[cluster].default_partition
 
-    assert partition is not None, \
-        f"Cannot use default cluster {cluster} without default partition, provide it in {cluster}.yaml"
+    assert (
+        partition is not None
+    ), f"Cannot use default cluster {cluster} without default partition, provide it in {cluster}.yaml"
     return cluster, partition

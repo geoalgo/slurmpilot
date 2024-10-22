@@ -111,6 +111,23 @@ def main():
             default_partition = input("Default partition (optional):")
             remote_path = input(f"Remote path (default to slurmpilot/):")
 
+            prompt_for_login_password = (
+                input(
+                    f"Prompt for a login password for ssh if you set a key password? (y/n) optional and deactivated by default:"
+                )
+                .lower()
+                .strip()
+                == "y"
+            )
+            prompt_for_login_passphrase = (
+                input(
+                    f"Prompt for a login passphrase for ssh if you set a key password? (y/n) optional and deactivated by default:"
+                )
+                .lower()
+                .strip()
+                == "y"
+            )
+
             config_cluster_path = config_path / "clusters" / f"{cluster}.yaml"
             print(f"Saving cluster configuration {cluster} to {config_cluster_path}")
             config = ClusterConfig(
@@ -119,8 +136,10 @@ def main():
                 account=account,
                 user=username,
                 default_partition=default_partition,
+                prompt_for_login_passphrase=prompt_for_login_passphrase,
+                prompt_for_login_password=prompt_for_login_password,
             )
-            print(config)
+            print(f"Going to save {config} to {config_cluster_path}")
 
             with open(config_path / "clusters" / f"{cluster}.yaml", "w") as f:
                 dict_without_none = {k: v for k, v in config.__dict__.items() if v}
