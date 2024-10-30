@@ -39,6 +39,7 @@ The following should:
 * send the code only once
 * use a naming grouping strategy so that jobs are either called: "fine-tune-mlp-1", "fine-tune-mlp-2", ... or "fine-tune-mlp/1", "fine-tune-mlp/2", ...
 
+The type of `JobCreationInfo.python_args` would be `Union[str, list[str]]`.
 It would be nice to be able to restart failed jobs from a list (in case of transient errors).
 
-We could also expose another function to schedule a list of jobs.
+We could also expose another function to schedule a list of jobs which would avoid to have a union for `python_args`.

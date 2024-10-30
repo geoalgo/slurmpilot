@@ -218,7 +218,7 @@ However, running docker in Slurm is often not an option due to difficulties to r
 * medium: rename SlurmWrapper to SlurmPilot
 * medium: rerun/restart job (useful in case of transient error)
 * medium: download in batch
-* low: support numerating suffix "-1", "-2" instead of random names
+* low: support numerating suffix "-01", "-2" instead of random names
 * low: doc for handling python dependencies
 * low: allow to share common folders to avoid sending code lots of times, probably do a doc example
 * TBD: chain of jobs
