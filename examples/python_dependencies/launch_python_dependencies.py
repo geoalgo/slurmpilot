@@ -2,17 +2,19 @@
 Example that shows how to launch a script that requires a library from another folder that is being copied over
  and added to Python path by Slurmpilot.
 """
+
 import logging
 from pathlib import Path
-from slurmpilot.config import default_cluster_and_partition
-from slurmpilot.slurm_wrapper import SlurmWrapper, JobCreationInfo
+from slurmpilot import SlurmWrapper, JobCreationInfo, default_cluster_and_partition
 from slurmpilot.util import unify
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     logging.basicConfig(level=logging.INFO)
     cluster, partition = default_cluster_and_partition()
-    jobname = unify("examples/custom-library/job", method="coolname")  # make the jobname unique by appending a coolname
+    jobname = unify(
+        "examples/custom-library/job", method="coolname"
+    )  # make the jobname unique by appending a coolname
     slurm = SlurmWrapper(clusters=[cluster])
     max_runtime_minutes = 60
     root_dir = Path(__file__).parent
@@ -22,7 +24,7 @@ if __name__ == '__main__':
         jobname=jobname,
         entrypoint="main_using_custom_library.py",
         python_args="--learning-rate 0.01",
-        #bash_setup_command="source mmlu/setup_environment.sh",
+        # bash_setup_command="source mmlu/setup_environment.sh",
         src_dir=str(root_dir / "script"),
         python_libraries=[str(root_dir / "custom_library")],
         python_binary="/home/salinasd/miniconda3/envs/mmlu/bin/python",

@@ -1,7 +1,6 @@
 import logging
 
-from slurmpilot.config import default_cluster_and_partition
-from slurmpilot.slurm_wrapper import SlurmWrapper, JobCreationInfo
+from slurmpilot import SlurmWrapper, JobCreationInfo, default_cluster_and_partition
 from slurmpilot.util import unify
 
 if __name__ == "__main__":

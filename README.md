@@ -207,6 +207,8 @@ However, running docker in Slurm is often not an option due to difficulties to r
 **TODOs**
 * high: explain examples in readme
 * high: better support to launch series of experiments
+* high: pipeline to publish pypi version
+* high: unify requirements and poetry
 * medium: discuss getting out of your way philosophy of the tool
 * medium: report runtime in sp --list_jobs
 * medium: make script execution independent of cwd and dump variable to enforce reproducibility
