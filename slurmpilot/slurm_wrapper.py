@@ -86,8 +86,9 @@ class SlurmWrapper:
         # return a list consisting of the provided cluster if not None or all the clusters if None
         return [cluster] if cluster else self.clusters
 
-    def schedule_job(self, job_info: JobCreationInfo, dryrun: bool = False) -> int:
-        # TODO support passing all arguments directly instead of intermediate object
+    def schedule_job(
+        self, job_info: JobCreationInfo, dryrun: bool = False
+    ) -> int | None:
         """
         remote location {slurmpilot_remote}/{jobname} stores:
         * stderr/
@@ -97,7 +98,7 @@ class SlurmWrapper:
         * source dir provided in job_info
         :param dryrun: whether to run a dry run mode which only sends the source remotely but does
         not schedule the job on slurm
-        :return: slurm job id if not running in `dry_run` mode
+        :return: slurm job id if successful and not running in `dry_run` mode
         """
         job_info.check_path()
         cluster_connection = self.connections[job_info.cluster]
@@ -112,7 +113,7 @@ class SlurmWrapper:
         # tar and send slurmpilot dir
         remote_job_paths = self.remote_path(
             job_info, root_path=str(home_dir / "slurmpilot")
-        )  # TODO clean this
+        )
         self.job_scheduling_callback.on_sending_artifact(
             localpath=str(local_job_paths.resolve_path()),
             remotepath=str(remote_job_paths.resolve_path()),
@@ -139,7 +140,7 @@ class SlurmWrapper:
             )
             return jobid
         else:
-            return -1
+            return None
 
     def stop_job(self, jobname: str):
         metadata = self.job_creation_metadata(jobname)

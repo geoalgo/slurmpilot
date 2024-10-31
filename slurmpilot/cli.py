@@ -53,7 +53,7 @@ def main():
         action=argparse.BooleanOptionalAction,
     )
     parser.add_argument(
-        "--list_jobs", help="List n latest jobs", required=False, type=int, default=5
+        "--list-jobs", help="List n latest jobs", required=False, type=int, default=5
     )
 
     parser.add_argument(
