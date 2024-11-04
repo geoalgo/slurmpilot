@@ -10,6 +10,8 @@ import tarfile
 
 import paramiko
 
+from slurmpilot.util import path_size_human_readable
+
 logger = logging.getLogger(__name__)
 
 
@@ -202,7 +204,9 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
         # Note: we could also use rsync
         with tempfile.TemporaryDirectory() as tmpdirname:
             tarpath = self._tar(local_path, tgt=Path(tmpdirname) / local_path.name)
-            logger.info(f"sending {tarpath} remotely to {self.connection.host}")
+            logger.info(
+                f"sending {tarpath} ({path_size_human_readable(str(tarpath))}) remotely to {self.connection.host}"
+            )
             self.run(f"mkdir -p {str(remote_path)}")
             self.connection.put(
                 local=str(tarpath),

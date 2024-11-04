@@ -84,7 +84,6 @@ def main():
         slurm = SlurmWrapper(clusters=[job.cluster])
         # TODO use match
         if args.log:
-
             print(slurm.format_string_jobname("Displaying log for job", job.jobname))
             slurm.print_log(jobname=job.jobname)
         if args.download:
