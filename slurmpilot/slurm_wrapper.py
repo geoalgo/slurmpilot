@@ -64,7 +64,7 @@ class SlurmWrapper:
             if cluster in clusters:
                 self.connections[cluster] = RemoteCommandExecutionFabrik(
                     master=config.host,
-                    user=config.user if config.user else os.getenv("USER"),
+                    user=config.user,
                     prompt_for_login_password=config.prompt_for_login_password,
                     prompt_for_login_passphrase=config.prompt_for_login_passphrase,
                 )

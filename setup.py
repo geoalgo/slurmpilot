@@ -17,6 +17,7 @@ setup(
         "console_scripts": [
             "slurmpilot=slurmpilot.cli:main",
             "sp=slurmpilot.cli:main",
+            "sp-add-cluster=slurmpilot.add_cluster:main",
         ],
     },
 )

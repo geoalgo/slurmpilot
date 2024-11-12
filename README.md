@@ -1,58 +1,71 @@
 # Slurmpilot
 
 Slurmpilot is a python library to launch experiments in Slurm on any cluster from the comfort of your local machine.
-The library aims to take care of things such as sending remote code for execution, calling slurm, 
+The library aims to take care of things such as sending remote code for execution, calling slurm,
 finding good places to write logs and accessing status from your jobs.
 
 The key features are:
+
 * simplify job creation, improve reproducibility and allow launching slurm jobs from your machine
-* allows to easily list experiments, logs or show status and stop jobs 
+* allows to easily list experiments, logs or show status and stop jobs
 * easy switch between cluster by just providing different config files
 
-Essentially we want to make it much easier and faster for user to run experiments on Slurm and reach the quality of cloud usage.
+Essentially we want to make it much easier and faster for user to run experiments on Slurm and reach the quality of
+cloud usage.
 
-Important note: Right now, the library is very much work in progress. It is usable (I am using it for all my experiments) but the documentation is yet to be made and API has not been frozen yet.
+Important note: Right now, the library is very much work in progress. It is usable (I am using it for all my
+experiments) but the documentation is yet to be made and API has not been frozen yet.
 
 **What about other tools?**
 
-If you are familiar with tools, you may know the great [Skypilot](https://github.com/skypilot-org/skypilot) which allows to run experiments seamlessly between different cloud providers.
-The goal of this project is to ultimately provide a similar high-quality user experience for academics who are running on slurm and not cloud machines.
-Extending skypilot to support seems hard given the different nature of slurm and cloud (for instance not all slurm cluster could run docker) and hence this library was made rather than just contributing to skypilot.
+If you are familiar with tools, you may know the great [Skypilot](https://github.com/skypilot-org/skypilot) which allows
+to run experiments seamlessly between different cloud providers.
+The goal of this project is to ultimately provide a similar high-quality user experience for academics who are running
+on slurm and not cloud machines.
+Extending skypilot to support seems hard given the different nature of slurm and cloud (for instance not all slurm
+cluster could run docker) and hence this library was made rather than just contributing to skypilot.
 
-This library is also influenced by [Sagemaker python API](https://sagemaker.readthedocs.io/en/stable/) and you may find some similarities. 
+This library is also influenced by [Sagemaker python API](https://sagemaker.readthedocs.io/en/stable/) and you may find
+some similarities.
 
 ## Installing
 
 To install, run the following:
+
 ```bash
 pip install "slurmpilot[extra] @ git+https://github.com/geoalgo/slurmpilot.git"
 ```
 
 ## Adding a cluster
+
 Before you can schedule a job, you will need to provide information about a cluster by specifying a configuration.
 
 You can run the following command:
-```bash 
-slurmpilot --add-cluster
-```
-which will ask you for the name of the cluster, the hostname, your username etc. After adding those information, a ssh
-connection will be made with the provided information to check if the connection can be made.
 
-Alternatively, you can specify/edit configuration directly in `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`, 
+```bash 
+sp-add-cluster --cluster YOUR_CLUSTER --host YOUR_HOST --user YOUR_USER --check-ssh-connection
+```
+
+you can also configure the ssh key to use, whether to keep the ssh connection alive, see `sp-add-cluster --help`
+to get the full list of options.
+
+After adding those information, if you passed `--check-ssh-connection`a ssh connection will be made with the provided
+information to check if the connection can be made.
+
+Alternatively, you can specify/edit configuration directly in `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`,
 for instance a configuration could be like this:
+
 ```yaml
 # connecting to this host via ssh should work as Slurmpilot relies on ssh
-host: your-gpu-cluster.com
+host: name
 # optional, specify the path where files will be written by slurmpilot on the remote machine, default to ~/slurmpilot
 remote_path: "/home/username2/foo/slurmpilot/"
-# optional, only specify if the user on the cluster is different than on your local machine
-user: username2  
-# optional, specify a slurm account if needed
-account: "AN_ACCOUNT"  
+# optional, specify a slurm account if needed (passed with --acount to slurm)
+account: "AN_ACCOUNT"
 # optional, allow to avoid the need to specify the partition
 default_partition: "NAME_OF_PARTITION_TO_BE_USED_BY_DEFAULT"
 # optional (default to false), whether you should be prompted to use a login password for ssh
-prompt_for_login_password: true 
+prompt_for_login_password: true
 # optional (default to false), whether you should be prompted to use a login passphrase for ssh
 prompt_for_login_passphrase: false
 ```
@@ -71,7 +84,9 @@ default_cluster: "YOUR_CLUSTER"
 ```
 
 ## Scheduling a job
-You are now ready to schedule jobs! Let us have a look at `launch_hellocluster.py`, in particular, you can call the following to schedule a job:
+
+You are now ready to schedule jobs! Let us have a look at `launch_hellocluster.py`, in particular, you can call the
+following to schedule a job:
 
 ```python
 config = load_config()
@@ -94,26 +109,33 @@ jobid = slurm.schedule_job(jobinfo)
 ```
 
 Here we created a job in the default cluster and partition. A couple of points:
-* `cluster`: you can use any cluster `YOURCLUSTER` as long as the file `config/clusters/YOURCLUSTER.yaml` exists, that the hostname is reachable through ssh and that Slurm is installed on the host.
-* `jobname` must be unique, we use `unify` which appends a unique suffix to ensure unicity even if the scripts is launched multiple times. Nested folders can be used, in this case, files will be written under "~/slurmpilot/jobs/examples/hello-cluster..."
+
+* `cluster`: you can use any cluster `YOURCLUSTER` as long as the file `config/clusters/YOURCLUSTER.yaml` exists, that
+  the hostname is reachable through ssh and that Slurm is installed on the host.
+* `jobname` must be unique, we use `unify` which appends a unique suffix to ensure unicity even if the scripts is
+  launched multiple times. Nested folders can be used, in this case, files will be written under "~
+  /slurmpilot/jobs/examples/hello-cluster..."
 * `entrypoint` is the script we want to launched and should be present in `{src_dir}/{entrypoint}`
 * `n_cpus` is the number of CPUs, we can control other slurm arguments such as number of GPUs, number of nodes etc
 * `env` allows to pass environment variable to the script that is being remotely executed
 
 ### Workflow
+
 When scheduling a job, the files required to run it are first copied to `~/slurmpilot/jobs/YOUR_JOB_NAME` and then
 sent to the remote host to `~/slurmpilot/jobs/YOUR_JOB_NAME` (those defaults paths are modifiable).
 
 In particular, the following files are generated locally under `~/slurmpilot/jobs/YOUR_JOB_NAME`:
-* `slurm_script.sh`: a slurm script automatically generated from your options that is executed on the remote node with sbatch
+
+* `slurm_script.sh`: a slurm script automatically generated from your options that is executed on the remote node with
+  sbatch
 * `metadata.json`: contains metadata such as time and the configuration of the job that was scheduled
 * `jobid.json`: contains the slurm jobid obtained when scheduling the job, if this step was successful
 * `src_dir`: the folder containing the entrypoint
 * `{src_dir}/entrypoint`: the entrypoint to be executed
 
-On the remote host, the logs are written under `logs/stderr` and `logs/stdout` and the current working dir is also 
-`~/slurmpilot/jobs/YOUR_JOB_NAME` unless overwritten in `general.yaml` config (see `Other ways to specify configurations` section).
-
+On the remote host, the logs are written under `logs/stderr` and `logs/stdout` and the current working dir is also
+`~/slurmpilot/jobs/YOUR_JOB_NAME` unless overwritten in `general.yaml` config (
+see `Other ways to specify configurations` section).
 
 ### Scheduling python jobs
 
@@ -137,13 +159,14 @@ jobid = slurm.schedule_job(jobinfo)
 
 This will create a sbatch script as in the previous example but this time, it will call directly your python script
 with the binary and the arguments provided, you can see the full example
-[launch_hellocluster_python.py](examples%2Fhellocluster-python%2Flaunch_hellocluster_python.py). 
-Note that you can also set `bash_setup_command` which allows to run some command before 
+[launch_hellocluster_python.py](examples%2Fhellocluster-python%2Flaunch_hellocluster_python.py).
+Note that you can also set `bash_setup_command` which allows to run some command before
 calling your python script (for instance to setup the environment, activate conda, setup a server ...).
 
 ### CLI
 
 Slurmpilot provides a CLI which allows to:
+
 * display log of a job
 * list information about a list of jobs in a table
 * stop a job
@@ -157,7 +180,9 @@ After installing slurmpilot, you can run the following to get help on how to use
 ```bash
 sp --help
 ```
+
 For instance, running `sp --list-jobs 5` will display informations of the past 5 jobs as follows:
+
 ```
                                          job           date    cluster                 status                                       full jobname
     v2-loop-judge-option-2024-09-24-16-47-36 24/09/24-16:47   clusterX    Pending ⏳           judge-tuning-v0/v2-loop-judge-option-2024-09-24...
@@ -168,14 +193,14 @@ job-arboreal-foxhound-of-splendid-domination 24/09/24-12:54   clusterY    Comple
 ```
 
 Note that listing jobs requires the ssh connection to work with every cluster since Slurm will be queried to know the
-current status, if cluster is unavailable because the ssh credentials expired for instance then a place holder status 
+current status, if cluster is unavailable because the ssh credentials expired for instance then a place holder status
 will be shown.
-
 
 ## FAQ/misc
 
 **Developer setup.**
 If you want to develop features, run the following:
+
 ```bash
 git clone https://github.com/geoalgo/slurmpilot.git
 cd slurmpilot
@@ -187,6 +212,7 @@ pre-commit autoupdate
 **Global configuration.**
 You can specify global properties by writing `~/slurmpilot/config/general.yaml`
 and edit the following:
+
 ```
 # where files are written locally on your machine for job status, logs and artifacts
 local_path: "~/slurmpilot"  
@@ -200,11 +226,12 @@ A typical workflow for Slurm user is to send their code to a remote machine and 
 work with ssh from a machine (typically the developer) machine because we want to be able to switch to several cluster
 without hassle.
 
-**Why don't you rely on docker?** 
+**Why don't you rely on docker?**
 Docker is a great option and is being used in similar tools built for the cloud such as Skypilot, SageMaker, ...
 However, running docker in Slurm is often not an option due to difficulties to run without root privileges.
 
 **TODOs**
+
 * high: better support to launch series of experiments
 * high: explain examples in readme
 * high: pipeline to publish pypi version
@@ -228,6 +255,7 @@ However, running docker in Slurm is often not an option due to difficulties to r
 * TBD: chain of jobs
 
 **DONE**
+
 * high: show size of zipped archive
 * high: support password and passphrase for ssh
 * low: remove logging info ssh
@@ -239,12 +267,14 @@ However, running docker in Slurm is often not an option due to difficulties to r
 * high: support subfolders for experiment files
 * medium: add support to add cluster from CLI
 * medium/high: script to install cluster (ask username, hostname etc)
-* high: support defining cluster as env variable, would allow to run example and make it easier to explain examples in README.md
-* medium: dont make ssh connection to every cluster in cli, requires small refactor to avoid needing SlurmWrapper to get last jobname
+* high: support defining cluster as env variable, would allow to run example and make it easier to explain examples in
+  README.md
+* medium: dont make ssh connection to every cluster in cli, requires small refactor to avoid needing SlurmWrapper to get
+  last jobname
 * high: handle python code dependencies
 * high: add example in main repo
-* medium: add option to stop in the CLI 
-* high: push in github 
+* medium: add option to stop in the CLI
+* high: push in github
 * high: allow to fetch info from local folders in list_jobs
 * when creating job, show command that can be copy-pasted to display log, status, sync artifact
 * support setting local configs path via local files
@@ -264,7 +294,7 @@ However, running docker in Slurm is often not an option due to difficulties to r
 * able to see status of jobs
 * list all jobs and see their status
 * enable multiple configurations
-* "integration" tests that runs sinfo and lightweight operations 
+* "integration" tests that runs sinfo and lightweight operations
 * option to wait until complete or failed
 * stop job
 

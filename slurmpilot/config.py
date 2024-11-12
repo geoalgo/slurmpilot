@@ -99,7 +99,10 @@ def load_yaml(path: Path) -> dict:
 
 def load_cluster_config(path: Path) -> ClusterConfig:
     if path.exists():
-        return ClusterConfig(**load_yaml(path))
+        try:
+            return ClusterConfig(**load_yaml(path))
+        except TypeError as e:
+            raise ValueError(f"Could not read configuration in {path}: {str(e)}")
     else:
         return None
 
