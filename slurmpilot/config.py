@@ -132,7 +132,7 @@ def load_config(user_path: Path | None = None) -> Config:
         )
 
     logger.info(
-        f"Loaded cluster configurations {list(user_config.cluster_configs.keys())}."
+        f'Loaded cluster configurations {", ".join(user_config.cluster_configs.keys())}.'
     )
     return Config(
         general_config=general_config, cluster_configs=user_config.cluster_configs
