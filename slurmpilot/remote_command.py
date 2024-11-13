@@ -159,7 +159,7 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
                         logging.debug(
                             f"Command {command} failed\n{fabric_result.stderr}"
                         )
-            except paramiko.ssh_exception.ChannelException as e:
+            except paramiko.ssh_exception.SSHException as e:
                 if log_error:
                     logging.debug(
                         f"Command {command} failed because of connection issue {str(e)}"

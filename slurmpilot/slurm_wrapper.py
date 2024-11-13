@@ -25,6 +25,7 @@ from slurmpilot.remote_command import (
     RemoteExecution,
 )
 from slurmpilot.slurm_job_status import SlurmJobStatus
+from slurmpilot.util import catchtime
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -403,17 +404,37 @@ class SlurmWrapper:
         job_metadata = self.job_creation_metadata(jobname=jobname)
         return job_metadata.cluster
 
+    @staticmethod
+    def find_metadata(root: Path):
+        # we write a custom code to get all the metadata.json recursively under root
+        # the code is custom to avoid searching subdir as soon as we find a metadata.json which is wasteful
+        res = []
+        to_be_visited = [root]
+        while to_be_visited:
+            cur = to_be_visited[-1]
+            to_be_visited.pop()
+            if (cur / "metadata.json").exists():
+                res.append(cur / "metadata.json")
+            else:
+                for child in cur.glob("*"):
+                    if child.is_dir():
+                        to_be_visited.append(child)
+        return res
+
     def list_jobs(self, n_jobs: int) -> List[JobMetadata]:
-        files = sorted(
-            (self.config.local_slurmpilot_path() / "jobs")
-            .expanduser()
-            .rglob("metadata.json"),
-            key=lambda item: item.stat().st_ctime,
-            reverse=True,
+        files = self.find_metadata(
+            root=(self.config.local_slurmpilot_path() / "jobs").expanduser()
         )
-        jobs = []
-        files = list(files)
+        # sort by creation time
+        files = list(
+            sorted(
+                files,
+                key=lambda item: item.stat().st_ctime,
+                reverse=True,
+            )
+        )
         files = files[:n_jobs]
+        jobs = []
         for file in files:
             with open(file, "r") as f:
                 try:
@@ -482,6 +503,7 @@ class SlurmWrapper:
     ):
         rows = []
         jobs = self.list_jobs(n_jobs)
+        print("Calling remote sacct on remote nodes to get status.")
         statuses = self.status(jobnames=[job.jobname for job in jobs])
         for job, status in zip(jobs, statuses):
             # TODO status when missing jobid.json => error at launching
