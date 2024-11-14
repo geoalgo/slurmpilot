@@ -472,10 +472,17 @@ class SlurmWrapper:
                 sacct_format = "JobID,Elapsed,start,State"
 
                 # call sacct...
+                if cluster not in self.connections:
+                    print(
+                        f"Cluster {cluster} not found in your configuration, you probably delete or change a cluster"
+                        f"configuration since the job creation."
+                    )
+                    for jobid, job_metadata in job_clusters:
+                        jobnames_statuses[jobid] = "missing"
+                    continue
                 res = self.connections[cluster].run(
                     f'sacct --format="{sacct_format}" -X -p --jobs={",".join(query_jobids)}'
                 )
-
                 # ...and parse output
                 lines = res.stdout.split("\n")
                 keys = lines[0].split("|")[:-1]

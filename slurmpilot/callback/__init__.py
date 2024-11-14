@@ -58,7 +58,7 @@ class SlurmSchedulerCallback(SlurmSchedulerCallbackInterface):
             ),
             (
                 "sync the artifact of your job",
-                f"slurmpilot --sync {jobname}",
+                f"slurmpilot --download {jobname}",
             ),
             (
                 "show the status of your job",
