@@ -1,5 +1,6 @@
 import argparse
 
+from slurmpilot.callback import format_jobname
 from slurmpilot.config import load_config
 from slurmpilot.slurm_wrapper import SlurmWrapper
 
@@ -10,14 +11,16 @@ def jobname_from_cli_args_or_take_latest(args):
             return SlurmWrapper.job_creation_metadata(args.job)
         except FileNotFoundError as e:
             print(
-                f"Jobname passed not found, searching for a jobname which contains {args.job}."
+                f"Jobname passed not found, searching for a jobname which contains {format_jobname(args.job)}."
             )
             job_metadata = SlurmWrapper.latest_job(pattern=args.job)
             return job_metadata
 
     else:
         job_metadata = SlurmWrapper.latest_job()
-        print(f"No jobs specified, retrieved the latest one: {job_metadata.jobname}")
+        print(
+            f"No jobs specified, retrieved the latest one: {format_jobname(job_metadata.jobname)}"
+        )
         return job_metadata
 
 

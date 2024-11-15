@@ -18,36 +18,39 @@ class SlurmSchedulerCallbackInterface:
         raise NotImplementedError()
 
 
-class SlurmSchedulerCallback(SlurmSchedulerCallbackInterface):
-    def __init__(self):
-        self.format_cluster = "1;30;34"
-        self.format_highlight = "1;30;34"
-        self.format_jobname = "1;31;38"
+def format(s: str, format_pattern: str):
+    return f"\x1b[{format_pattern}m{s}\x1b[0m"
 
-    def format(self, s, format_pattern=None):
-        if not format_pattern:
-            format_pattern = self.format_cluster
-        return f"\x1b[{format_pattern}m{s}\x1b[0m"
+
+def format_cluster(cluster: str) -> str:
+    return format(cluster, format_pattern="1;30;34")
+
+
+def format_jobname(jobname: str) -> str:
+    return format(jobname, format_pattern="1;31;31")
+
+
+def format_highlight(s: str):
+    return format(s, format_pattern="1;30;34")
+
+
+class SlurmSchedulerCallback(SlurmSchedulerCallbackInterface):
 
     def format_string_jobname(self, message: str, jobname: str) -> str:
-        return f"{message} {self.format(jobname, self.format_jobname)}."
+        return f"{message} {format_jobname(jobname)}."
 
     def on_job_scheduled_start(self, cluster: str, jobname: str):
-        print(
-            f"Starting job {self.format(jobname, self.format_jobname)} on {self.format(cluster, self.format_cluster)}."
-        )
+        print(f"Starting job {format_jobname(jobname)} on {format_cluster(cluster)}.")
 
     def on_establishing_connection(self, cluster: str):
-        print(
-            f"Establishing ssh connection with {self.format(cluster, self.format_cluster)}"
-        )
+        print(f"Establishing ssh connection with {format_cluster(cluster)}")
 
     def on_sending_artifact(self, localpath: str, remotepath: str, cluster: str):
         print(f"Sending job data from {localpath} to {cluster}:{remotepath}")
 
     def on_job_submitted_to_slurm(self, jobid: int, jobname: str):
         print(
-            f"Job submitted to Slurm with the following id {self.format(jobid, self.format_jobname)} saving the jobid locally."
+            f"Job submitted to Slurm with the following id {format_jobname(jobid)} saving the jobid locally."
         )
 
     def on_suggest_command_before_wait_completion(self, jobname: str):
@@ -72,8 +75,7 @@ class SlurmSchedulerCallback(SlurmSchedulerCallbackInterface):
         commands_strings = []
         for description, command in commands:
             commands_strings.append(
-                f"* {description}: "
-                + self.format(f"`{command}`", self.format_highlight)
+                f"* {description}: " + format_highlight(f"`{command}`")
             )
         cmds = "\n".join(commands_strings)
         print(f"You can use the following commands in a terminal:\n" + cmds)
@@ -81,13 +83,13 @@ class SlurmSchedulerCallback(SlurmSchedulerCallbackInterface):
     def on_waiting_completion(self, jobname: str, status: str, n_seconds_wait: int):
         # TODO dependency inversion to support rich
         print(
-            f"{self.format(jobname, self.format_jobname)} status {self.format(status, self.format_highlight)}, waiting {n_seconds_wait}s"
+            f"{format_jobname(jobname)} status {format_highlight(status)}, waiting {n_seconds_wait}s"
         )
 
     def on_config_loaded(self, config: Config):
         print(f"Cluster configurations loaded:")
         for cluster, cluster_config in config.cluster_configs.items():
-            print(f"{self.format(cluster, self.format_cluster)}: {cluster_config}")
+            print(f"{format_cluster(cluster)}: {cluster_config}")
 
 
 if __name__ == "__main__":

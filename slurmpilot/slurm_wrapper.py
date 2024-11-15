@@ -15,7 +15,7 @@ import pandas as pd
 import paramiko
 from paramiko.ssh_exception import AuthenticationException
 
-from slurmpilot.callback import SlurmSchedulerCallback
+from slurmpilot.callback import SlurmSchedulerCallback, format_highlight
 from slurmpilot.config import Config, load_config
 from slurmpilot.job_creation_info import JobCreationInfo
 from slurmpilot.job_metadata import JobMetadata
@@ -185,8 +185,8 @@ class SlurmWrapper:
             ):
                 current_status = self.status([jobname])[0]
                 text = (
-                    f"Waiting job to finish, current status {current_status} (updated every {wait_interval}s, "
-                    f"waited for {int(time.time() - starttime)}s)"
+                    f"Waiting job to finish, current status {format_highlight(current_status)} (updated every "
+                    f"{wait_interval}s, waited for {int(time.time() - starttime)}s)"
                 )
                 live.renderable.update(text=Text(text))
                 time.sleep(

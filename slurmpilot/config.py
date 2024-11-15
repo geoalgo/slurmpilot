@@ -18,10 +18,10 @@ class GeneralConfig(NamedTuple):
     # General configurations containing defaults
 
     # default path where slurmpilot job files are generated
-    local_path: str
+    local_path: str = str(Path("~/slurmpilot").expanduser())
 
     # default path where slurmpilot job files are generated on the remote machine, Note: "~" cannot be used
-    remote_path: str
+    remote_path: str = str("slurmpilot/")
 
     # default cluster to be used, must have a file `config/clusters/{default_cluster}.yaml` associated
     default_cluster: str | None = None
@@ -110,7 +110,8 @@ def load_cluster_config(path: Path) -> ClusterConfig:
 def load_general_config(path: Path) -> GeneralConfig:
     if path.exists():
         args = load_yaml(path)
-        args["local_path"] = str(Path(args["local_path"]).expanduser())
+        if "local_path" in args:
+            args["local_path"] = str(Path(args["local_path"]).expanduser())
         return GeneralConfig(**load_yaml(path))
     else:
         return None
