@@ -250,8 +250,7 @@ class SlurmWrapper:
                 matches = re.match(slurm_submitted_msg + r"(\d*)", stdout)
                 logging.debug(stdout)
                 jobid = int(matches.groups()[0])
-                # Save the jobid locally so that we can later maps jobname to jobid for slurm query
-                # We do not save it remotely as it does not seem necessary but we could if needed
+                # Save the jobid locally so that we can later map jobname to jobid for future slurm query
                 self._save_jobid(local_job_paths, jobid)
                 return jobid
             else:
