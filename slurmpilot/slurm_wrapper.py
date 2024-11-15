@@ -18,7 +18,7 @@ from paramiko.ssh_exception import AuthenticationException
 from slurmpilot.callback import SlurmSchedulerCallback, format_highlight
 from slurmpilot.config import Config, load_config
 from slurmpilot.job_creation_info import JobCreationInfo
-from slurmpilot.job_metadata import JobMetadata
+from slurmpilot.job_metadata import JobMetadata, list_metadatas
 from slurmpilot.jobpath import JobPathLogic
 from slurmpilot.remote_command import (
     RemoteCommandExecutionFabrik,
@@ -381,18 +381,11 @@ class SlurmWrapper:
         """
         if config is None:
             config = load_config()
-        files = list(
-            (config.local_slurmpilot_path() / "jobs")
-            .expanduser()
-            .rglob("metadata.json")
+        metadatas = list_metadatas(
+            root=config.local_slurmpilot_path() / "jobs", n_jobs=-1
         )
-        if pattern is not None:
-            # Search for job that matches the patter given
-            files = [x for x in files if pattern in str(x)]
-        if len(files) > 0:
-            latest_file = max(files, key=lambda item: item.stat().st_ctime)
-            with open(latest_file, "r") as f:
-                return JobMetadata.from_json(f.read())
+        if len(metadatas) > 0:
+            return metadatas[0]
         raise ValueError(f"No job was found at {config.local_slurmpilot_path()}")
 
     def cluster(self, jobname: str):
@@ -403,44 +396,9 @@ class SlurmWrapper:
         job_metadata = self.job_creation_metadata(jobname=jobname)
         return job_metadata.cluster
 
-    @staticmethod
-    def find_metadata(root: Path):
-        # we write a custom code to get all the metadata.json recursively under root
-        # the code is custom to avoid searching subdir as soon as we find a metadata.json which is wasteful
-        res = []
-        to_be_visited = [root]
-        while to_be_visited:
-            cur = to_be_visited[-1]
-            to_be_visited.pop()
-            if (cur / "metadata.json").exists():
-                res.append(cur / "metadata.json")
-            else:
-                for child in cur.glob("*"):
-                    if child.is_dir():
-                        to_be_visited.append(child)
-        return res
-
-    def list_jobs(self, n_jobs: int) -> List[JobMetadata]:
-        files = self.find_metadata(
-            root=(self.config.local_slurmpilot_path() / "jobs").expanduser()
-        )
-        # sort by creation time
-        files = list(
-            sorted(
-                files,
-                key=lambda item: item.stat().st_ctime,
-                reverse=True,
-            )
-        )
-        files = files[:n_jobs]
-        jobs = []
-        for file in files:
-            with open(file, "r") as f:
-                try:
-                    jobs.append(JobMetadata.from_json(f.read()))
-                except json.decoder.JSONDecodeError:
-                    pass
-        return jobs
+    def list_metadatas(self, n_jobs: int):
+        root = (self.config.local_slurmpilot_path() / "jobs").expanduser()
+        return list_metadatas(root=root, n_jobs=n_jobs)
 
     def status(self, jobnames: list[str]) -> list[str | None]:
         if not isinstance(jobnames, list):
@@ -508,7 +466,7 @@ class SlurmWrapper:
         self, n_jobs: int = 10, max_colwidth: int = 50, status_verbose: bool = True
     ):
         rows = []
-        jobs = self.list_jobs(n_jobs)
+        jobs = self.list_metadatas(n_jobs)
         print("Calling remote sacct on remote nodes to get status.")
         statuses = self.status(jobnames=[job.jobname for job in jobs])
         for job, status in zip(jobs, statuses):
