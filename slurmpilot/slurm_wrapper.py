@@ -528,6 +528,9 @@ class SlurmWrapper:
         # 1) download log from remote file
         # 2) show in console
         # we could also consider streaming
+        print(
+            f"Downloading logs into {format_highlight(local_path.stderr_path().parent)}"
+        )
         remote_path = JobPathLogic.from_jobname(
             jobname=jobname,
             root_path=self.config.remote_slurmpilot_path(cluster),

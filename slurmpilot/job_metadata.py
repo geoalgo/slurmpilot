@@ -55,7 +55,7 @@ def list_metadatas_files(root: Path):
     return res
 
 
-def list_metadatas(root: Path, n_jobs: int | None) -> list[JobMetadata]:
+def list_metadatas(root: Path, n_jobs: int | None = None) -> list[JobMetadata]:
     """
     :param root: folder where job metadata are searched recursively
     :param n_jobs:
