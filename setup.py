@@ -15,9 +15,10 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "slurmpilot=slurmpilot.cli:main",
-            "sp=slurmpilot.cli:main",
-            "sp-add-cluster=slurmpilot.add_cluster:main",
+            "slurmpilot=slurmpilot.cli.cli:main",
+            "sp=slurmpilot.cli.cli:main",
+            "sp-add-cluster=slurmpilot.cli.add_cluster:main",
+            "sp-usage=slurmpilot.cli.usage:main",
         ],
     },
 )

@@ -196,6 +196,22 @@ Note that listing jobs requires the ssh connection to work with every cluster si
 current status, if cluster is unavailable because the ssh credentials expired for instance then a place holder status
 will be shown.
 
+To see the utilisation you made of a cluster, run:
+
+```sp-usage --cluster YOUR_CLUSTER```
+which will show an output like this one:
+
+```
+Total number of jobs submitted: 1187.
+Total number of hours (only GPU): 841.77
+
+Number of GPU hours per type of configuration
+NNodes  n-gpu
+1       1        134.951389
+        2          1.022222
+        4        705.794444
+```
+
 ## FAQ/misc
 
 **Developer setup.**

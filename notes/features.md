@@ -13,6 +13,7 @@ Features
 | Specify clusters as config files     | ✅               |
 | Switch between clusters              | ✅               |
 | Install clusters from command line   | ✅               |
+| Compute usage statistics             | ✅               |
 | Launch experiment from command line  | ❌ (planned)     |
 | Allow to copy only python files      | ❌ (planned)     |
 | Schedule experiments by batch        | ❌ (planned)     |
