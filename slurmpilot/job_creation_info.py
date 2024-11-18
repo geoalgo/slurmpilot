@@ -40,6 +40,7 @@ class JobCreationInfo:
     max_runtime_minutes: int = 60  # max runtime in minutes
     account: str = None
     env: dict = None
+    nodes: int = None  # number of nodes for this job
 
     def __post_init__(self):
         if self.python_args:
@@ -84,6 +85,8 @@ class JobCreationInfo:
             res += sbatch_line(f"--mem={self.mem}")
         if self.n_gpus and self.n_gpus > 0:
             res += sbatch_line(f"--gres=gpu:{self.n_gpus}")
+        if self.nodes:
+            res += sbatch_line(f"--nodes={self.nodes}")
         if self.account:
             res += sbatch_line(f"--account={self.account}")
         if self.max_runtime_minutes:
