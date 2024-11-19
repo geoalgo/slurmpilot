@@ -18,10 +18,10 @@ class GeneralConfig(NamedTuple):
     # General configurations containing defaults
 
     # default path where slurmpilot job files are generated
-    local_path: str
+    local_path: str = str(Path("~/slurmpilot").expanduser())
 
     # default path where slurmpilot job files are generated on the remote machine, Note: "~" cannot be used
-    remote_path: str
+    remote_path: str = str("slurmpilot/")
 
     # default cluster to be used, must have a file `config/clusters/{default_cluster}.yaml` associated
     default_cluster: str | None = None
@@ -99,7 +99,10 @@ def load_yaml(path: Path) -> dict:
 
 def load_cluster_config(path: Path) -> ClusterConfig:
     if path.exists():
-        return ClusterConfig(**load_yaml(path))
+        try:
+            return ClusterConfig(**load_yaml(path))
+        except TypeError as e:
+            raise ValueError(f"Could not read configuration in {path}: {str(e)}")
     else:
         return None
 
@@ -107,7 +110,8 @@ def load_cluster_config(path: Path) -> ClusterConfig:
 def load_general_config(path: Path) -> GeneralConfig:
     if path.exists():
         args = load_yaml(path)
-        args["local_path"] = str(Path(args["local_path"]).expanduser())
+        if "local_path" in args:
+            args["local_path"] = str(Path(args["local_path"]).expanduser())
         return GeneralConfig(**load_yaml(path))
     else:
         return None
@@ -129,7 +133,7 @@ def load_config(user_path: Path | None = None) -> Config:
         )
 
     logger.info(
-        f"Loaded cluster configurations {list(user_config.cluster_configs.keys())}."
+        f'Loaded cluster configurations {", ".join(user_config.cluster_configs.keys())}.'
     )
     return Config(
         general_config=general_config, cluster_configs=user_config.cluster_configs

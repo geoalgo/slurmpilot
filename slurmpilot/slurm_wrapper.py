@@ -1,172 +1,36 @@
-import dataclasses
 import json
 import logging
 import os
 import re
 import shutil
 import time
+import traceback
 from _socket import gaierror
 from collections import defaultdict
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import NamedTuple, List, Tuple
-import traceback
+from typing import List
 
 import pandas as pd
 import paramiko
-from invoke import UnexpectedExit
 from paramiko.ssh_exception import AuthenticationException
 
-from slurmpilot.callback import SlurmSchedulerCallback
+from slurmpilot.callback import SlurmSchedulerCallback, format_highlight
 from slurmpilot.config import Config, load_config
+from slurmpilot.job_creation_info import JobCreationInfo
+from slurmpilot.job_metadata import JobMetadata, list_metadatas
 from slurmpilot.jobpath import JobPathLogic
 from slurmpilot.remote_command import (
     RemoteCommandExecutionFabrik,
     RemoteExecution,
 )
-from slurmpilot.util import print_table
+from slurmpilot.slurm_job_status import SlurmJobStatus
+from slurmpilot.util import catchtime
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(message)s", level=logging.INFO
 )
-
-
-@dataclass
-class JobCreationInfo:
-    jobname: str
-    entrypoint: str | None = None
-
-    bash_setup_command: str | None = (
-        None  # if specified a bash command that gets executed before the main script
-    )
-    src_dir: str | None = None
-    exp_id: str | None = None
-
-    sbatch_arguments: str | None = None  # argument to be passed to sbatch
-
-    # python
-    python_binary: str | None = None
-    # arguments to be passed to python script, if dictionary then arguments
-    # are converted to string with `--key=value` for all key, values of the dictionary
-    python_args: str | dict | None = None
-    # path existing remotely to be included in PYTHONPATH so that they can be imported in python
-    python_paths: list[str] | None = None
-    # python libraries existing locally to be sent to the remote and added to the PYTHONPATH
-    python_libraries: List[str] | None = None
-
-    # ressources
-    cluster: str = None
-    partition: str = None
-    n_cpus: int = 1  # number of cores
-    n_gpus: int = None  # number of gpus per node
-    mem: int = None  # memory pool for each core in MB
-    max_runtime_minutes: int = 60  # max runtime in minutes
-    account: str = None
-    env: dict = None
-    nodelist: str = None
-
-    def __post_init__(self):
-        if self.python_args:
-            if self.python_binary is None:
-                logging.warning(
-                    f"Python binary not set but passing `python_args`: {self.python_args}."
-                )
-        if self.python_binary is not None:
-            assert (
-                Path(self.entrypoint).suffix == ".py"
-            ), f"Must provide a python script ending with .py when using `python_binary` but got {self.entrypoint}."
-        if self.src_dir is None:
-            self.src_dir = "./"
-
-    def check_path(self):
-        assert Path(
-            self.src_dir
-        ).exists(), f"The src_dir path {self.src_dir} is missing."
-        entrypoint_path = Path(self.src_dir) / self.entrypoint
-        assert (
-            entrypoint_path.exists()
-        ), f"The entrypoint could not be found at {entrypoint_path}."
-
-    def sbatch_preamble(self) -> str:
-        """
-        Spits a preamble like this one valid for sbatch:
-        #SBATCH -p {partition}
-        #SBATCH --mem {mem}
-        ...
-        :return:
-        """
-        res = ""
-        sbatch_line = lambda config: f"#SBATCH {config}\n"
-        res += sbatch_line(f"--job-name={self.jobname}")
-        res += sbatch_line(f"--output=logs/stdout")
-        res += sbatch_line(f"--error=logs/stderr")
-        if self.n_cpus:
-            res += sbatch_line(f"--cpus-per-task={self.n_cpus}")
-        if self.partition:
-            res += sbatch_line(f"--partition={self.partition}")
-        if self.mem:
-            res += sbatch_line(f"--mem={self.mem}")
-        if self.n_gpus and self.n_gpus > 0:
-            res += sbatch_line(f"--gres=gpu:{self.n_gpus}")
-        if self.account:
-            res += sbatch_line(f"--account={self.account}")
-        if self.nodelist:
-            res += sbatch_line(f"--nodelist={self.nodelist}")
-        if self.max_runtime_minutes:
-            assert isinstance(
-                self.max_runtime_minutes, int
-            ), "maxruntime must be an integer expressing the number of minutes"
-            res += sbatch_line(f"--time={self.max_runtime_minutes}")
-        # res += sbatch_line("--chdir .")
-        return res
-
-
-class JobStatus:
-    completed: str = "COMPLETED"
-    pending: str = "PENDING"
-    failed: str = "FAILED"
-    running: str = "RUNNING"
-    cancelled: str = "CANCELLED"
-    timeout: str = "TIMEOUT"
-    out_of_memory: str = "OUT_OF_MEMORY"
-
-    def statuses(self):
-        return [self.completed, self.pending, self.failed, self.running, self.cancelled]
-
-
-@dataclass
-class JobMetadata:
-    user: str
-    date: str
-    job_creation_info: JobCreationInfo
-    cluster: str
-
-    @property
-    def jobname(self):
-        return self.job_creation_info.jobname
-
-    def to_json(self) -> str:
-        # The methods `to_json` and `from_json` are there because we have nested dataclasses which makes JobMetadata
-        # not directly Json serializable
-        class EnhancedJSONEncoder(json.JSONEncoder):
-            def default(self, o):
-                if dataclasses.is_dataclass(o):
-                    return dataclasses.asdict(o)
-                return super().default(o)
-
-        return json.dumps(self, cls=EnhancedJSONEncoder)
-
-    @classmethod
-    def from_json(cls, string) -> "JobMetadata":
-        dict_from_string = json.loads(string)
-        dict_from_string["job_creation_info"] = JobCreationInfo(
-            **dict_from_string["job_creation_info"]
-        )
-        return JobMetadata(
-            **dict_from_string,
-        )
 
 
 class SlurmWrapper:
@@ -201,7 +65,7 @@ class SlurmWrapper:
             if cluster in clusters:
                 self.connections[cluster] = RemoteCommandExecutionFabrik(
                     master=config.host,
-                    user=config.user if config.user else os.getenv("USER"),
+                    user=config.user,
                     prompt_for_login_password=config.prompt_for_login_password,
                     prompt_for_login_passphrase=config.prompt_for_login_passphrase,
                 )
@@ -223,8 +87,9 @@ class SlurmWrapper:
         # return a list consisting of the provided cluster if not None or all the clusters if None
         return [cluster] if cluster else self.clusters
 
-    def schedule_job(self, job_info: JobCreationInfo, dryrun: bool = False) -> int:
-        # TODO support passing all arguments directly instead of intermediate object
+    def schedule_job(
+        self, job_info: JobCreationInfo, dryrun: bool = False
+    ) -> int | None:
         """
         remote location {slurmpilot_remote}/{jobname} stores:
         * stderr/
@@ -234,7 +99,7 @@ class SlurmWrapper:
         * source dir provided in job_info
         :param dryrun: whether to run a dry run mode which only sends the source remotely but does
         not schedule the job on slurm
-        :return: slurm job id if not running in `dry_run` mode
+        :return: slurm job id if successful and not running in `dry_run` mode
         """
         job_info.check_path()
         cluster_connection = self.connections[job_info.cluster]
@@ -249,7 +114,7 @@ class SlurmWrapper:
         # tar and send slurmpilot dir
         remote_job_paths = self.remote_path(
             job_info, root_path=str(home_dir / "slurmpilot")
-        )  # TODO clean this
+        )
         self.job_scheduling_callback.on_sending_artifact(
             localpath=str(local_job_paths.resolve_path()),
             remotepath=str(remote_job_paths.resolve_path()),
@@ -276,7 +141,7 @@ class SlurmWrapper:
             )
             return jobid
         else:
-            return -1
+            return None
 
     def stop_job(self, jobname: str):
         metadata = self.job_creation_metadata(jobname)
@@ -315,13 +180,13 @@ class SlurmWrapper:
         ) as live:
             i = 0
             while (
-                current_status in [JobStatus.pending, JobStatus.running]
+                current_status in [SlurmJobStatus.pending, SlurmJobStatus.running]
                 and wait_interval * i < max_seconds
             ):
                 current_status = self.status([jobname])[0]
                 text = (
-                    f"Waiting job to finish, current status {current_status} (updated every {wait_interval}s, "
-                    f"waited for {int(time.time() - starttime)}s)"
+                    f"Waiting job to finish, current status {format_highlight(current_status)} (updated every "
+                    f"{wait_interval}s, waited for {int(time.time() - starttime)}s)"
                 )
                 live.renderable.update(text=Text(text))
                 time.sleep(
@@ -365,7 +230,7 @@ class SlurmWrapper:
                 },
                 retries=3,
             )
-        except UnexpectedExit as e:
+        except Exception as e:
             raise ValueError(
                 "Could not execute sbatch on the remote host, error:" + str(e)
             )
@@ -385,8 +250,7 @@ class SlurmWrapper:
                 matches = re.match(slurm_submitted_msg + r"(\d*)", stdout)
                 logging.debug(stdout)
                 jobid = int(matches.groups()[0])
-                # Save the jobid locally so that we can later maps jobname to jobid for slurm query
-                # We do not save it remotely as it does not seem necessary but we could if needed
+                # Save the jobid locally so that we can later map jobname to jobid for future slurm query
                 self._save_jobid(local_job_paths, jobid)
                 return jobid
             else:
@@ -517,18 +381,11 @@ class SlurmWrapper:
         """
         if config is None:
             config = load_config()
-        files = list(
-            (config.local_slurmpilot_path() / "jobs")
-            .expanduser()
-            .rglob("metadata.json")
+        metadatas = list_metadatas(
+            root=config.local_slurmpilot_path() / "jobs", n_jobs=-1
         )
-        if pattern is not None:
-            # Search for job that matches the patter given
-            files = [x for x in files if pattern in str(x)]
-        if len(files) > 0:
-            latest_file = max(files, key=lambda item: item.stat().st_ctime)
-            with open(latest_file, "r") as f:
-                return JobMetadata.from_json(f.read())
+        if len(metadatas) > 0:
+            return metadatas[0]
         raise ValueError(f"No job was found at {config.local_slurmpilot_path()}")
 
     def cluster(self, jobname: str):
@@ -539,24 +396,9 @@ class SlurmWrapper:
         job_metadata = self.job_creation_metadata(jobname=jobname)
         return job_metadata.cluster
 
-    def list_jobs(self, n_jobs: int) -> List[JobMetadata]:
-        files = sorted(
-            (self.config.local_slurmpilot_path() / "jobs")
-            .expanduser()
-            .rglob("metadata.json"),
-            key=lambda item: item.stat().st_ctime,
-            reverse=True,
-        )
-        jobs = []
-        files = list(files)
-        files = files[:n_jobs]
-        for file in files:
-            with open(file, "r") as f:
-                try:
-                    jobs.append(JobMetadata.from_json(f.read()))
-                except json.decoder.JSONDecodeError:
-                    pass
-        return jobs
+    def list_metadatas(self, n_jobs: int):
+        root = (self.config.local_slurmpilot_path() / "jobs").expanduser()
+        return list_metadatas(root=root, n_jobs=n_jobs)
 
     def status(self, jobnames: list[str]) -> list[str | None]:
         if not isinstance(jobnames, list):
@@ -587,10 +429,17 @@ class SlurmWrapper:
                 sacct_format = "JobID,Elapsed,start,State"
 
                 # call sacct...
+                if cluster not in self.connections:
+                    print(
+                        f"Cluster {cluster} not found in your configuration, you probably delete or change a cluster"
+                        f"configuration since the job creation."
+                    )
+                    for jobid, job_metadata in job_clusters:
+                        jobnames_statuses[jobid] = "missing"
+                    continue
                 res = self.connections[cluster].run(
                     f'sacct --format="{sacct_format}" -X -p --jobs={",".join(query_jobids)}'
                 )
-
                 # ...and parse output
                 lines = res.stdout.split("\n")
                 keys = lines[0].split("|")[:-1]
@@ -617,7 +466,8 @@ class SlurmWrapper:
         self, n_jobs: int = 10, max_colwidth: int = 50, status_verbose: bool = True
     ):
         rows = []
-        jobs = self.list_jobs(n_jobs)
+        jobs = self.list_metadatas(n_jobs)
+        print("Calling remote sacct on remote nodes to get status.")
         statuses = self.status(jobnames=[job.jobname for job in jobs])
         for job, status in zip(jobs, statuses):
             # TODO status when missing jobid.json => error at launching
@@ -625,12 +475,12 @@ class SlurmWrapper:
                 status_symbol = "Unknown slurm status 🏝"
             else:
                 status_mapping = {
-                    JobStatus.out_of_memory: "OOM 🤯",
-                    JobStatus.failed: "Slurm job failed ❌",
-                    JobStatus.pending: "Pending ⏳",
-                    JobStatus.running: "️Running 🏃",
-                    JobStatus.completed: "Completed ✅",
-                    JobStatus.cancelled: "Canceled ⚠️",
+                    SlurmJobStatus.out_of_memory: "OOM 🤯",
+                    SlurmJobStatus.failed: "Slurm job failed ❌",
+                    SlurmJobStatus.pending: "Pending ⏳",
+                    SlurmJobStatus.running: "️Running 🏃",
+                    SlurmJobStatus.completed: "Completed ✅",
+                    SlurmJobStatus.cancelled: "Canceled ⚠️",
                 }
                 if "CANCELLED" in status:
                     status_symbol = "Cancelled ⚠️"
@@ -678,6 +528,9 @@ class SlurmWrapper:
         # 1) download log from remote file
         # 2) show in console
         # we could also consider streaming
+        print(
+            f"Downloading logs into {format_highlight(local_path.stderr_path().parent)}"
+        )
         remote_path = JobPathLogic.from_jobname(
             jobname=jobname,
             root_path=self.config.remote_slurmpilot_path(cluster),

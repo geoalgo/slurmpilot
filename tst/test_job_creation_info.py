@@ -1,4 +1,4 @@
-from slurmpilot.slurm_wrapper import JobCreationInfo
+from slurmpilot import JobCreationInfo
 
 
 def test_preamble():

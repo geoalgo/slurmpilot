@@ -1,3 +1,4 @@
+import os
 import random
 import string
 import time
@@ -42,3 +43,15 @@ def print_table(rows):
         import pandas as pd
 
         print(pd.DataFrame(rows).set_index("JobName").to_string())
+
+
+def path_size_human_readable(path: str) -> str:
+    size = os.path.getsize(path)
+    if size < 1024:
+        return f"{size} bytes"
+    elif size < 1024**2:
+        return f"{size / 1024:.2f} KB"
+    elif size < 1024**3:
+        return f"{size / 1024 ** 2:.2f} MB"
+    elif size < 1024**4:
+        return f"{size / 1024 ** 3:.2f} GB"
