@@ -41,7 +41,8 @@ class JobCreationInfo:
     account: str = None
     env: dict = None
     nodes: int = None  # number of nodes for this job
-
+    nodelist: str = None
+    
     def __post_init__(self):
         if self.python_args:
             if self.python_binary is None:
@@ -89,6 +90,8 @@ class JobCreationInfo:
             res += sbatch_line(f"--nodes={self.nodes}")
         if self.account:
             res += sbatch_line(f"--account={self.account}")
+        if self.nodelist:
+            res += sbatch_line(f"--nodelist={self.nodelist}")
         if self.max_runtime_minutes:
             assert isinstance(
                 self.max_runtime_minutes, int
