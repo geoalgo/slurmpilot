@@ -10,6 +10,7 @@ import tarfile
 
 import paramiko
 
+from slurmpilot.callback import format_highlight
 from slurmpilot.util import path_size_human_readable
 
 logger = logging.getLogger(__name__)
@@ -238,9 +239,12 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
         """
         # Note, we could also tar the whole thing like we do to send, the reason we pick rsync is that often
         # some files will only be present and rsync allows to not copy those based on hashes
-        logger.info(f"Running rsync from {remote_path} to {local_path}")
+        logger.info(
+            f"Running rsync from {format_highlight(remote_path)} to {format_highlight(local_path)}"
+        )
+        user_prefix = f"{self.user}@" if self.user else ""
         command = (
-            f"rsync -aPvz {self.user}@{self.master}:{remote_path} {local_path.parent}"
+            f"rsync -aPvz {user_prefix}{self.master}:{remote_path} {local_path.parent}"
         )
         subprocess.run(command.split(" "), check=True)
 

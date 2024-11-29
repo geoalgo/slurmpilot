@@ -17,6 +17,8 @@
 * medium: rerun/restart job (useful in case of transient error)
 * medium: download in batch
 * medium: chain of jobs
+* medium: load cluster lazily when calling Slurmwrapper, only load the cluster dynamically when launching job, listing 
+status etc => this would allow to pass the cluster only once intstead of twice to avoid loading all clusters ATM 
 * low: support numerating suffix "-01", "-2" instead of random names
 * low: doc for handling python dependencies
 

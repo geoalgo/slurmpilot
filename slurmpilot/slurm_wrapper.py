@@ -25,6 +25,7 @@ from slurmpilot.remote_command import (
     RemoteExecution,
 )
 from slurmpilot.slurm_job_status import SlurmJobStatus
+from slurmpilot.slurm_main_script import generate_main_slurm_script
 from slurmpilot.util import catchtime
 
 logger = logging.getLogger(__name__)
@@ -294,42 +295,22 @@ class SlurmWrapper:
                     src=python_library,
                     dst=local_job_paths.resolve_path(Path(python_library).name),
                 )
-        self._generate_main_slurm_script(local_job_paths, job_info)
+        if isinstance(job_info.python_args, list):
+            with open(local_job_paths.job_path() / "python-args.txt", "w") as f:
+                for x in job_info.python_args:
+                    if isinstance(x, dict):
+                        x = " ".join(f"--{k}={v}" for k, v in x.items())
+                    f.write(x + "\n")
+        with open(local_job_paths.slurm_entrypoint_path(), "w") as f:
+            slurm_script = generate_main_slurm_script(
+                job_info=job_info,
+                entrypoint_path_from_cwd=local_job_paths.entrypoint_path_from_cwd(),
+                jobpath=local_job_paths.resolve_path(),
+            )
+            f.write(slurm_script)
+
         self._generate_metadata(local_job_paths, job_info)
         return local_job_paths
-
-    def _generate_main_slurm_script(
-        self, local_job_paths: JobPathLogic, job_info: JobCreationInfo
-    ):
-        with open(local_job_paths.slurm_entrypoint_path(), "w") as f:
-            f.write("#!/bin/bash\n")
-            f.write(job_info.sbatch_preamble())
-            # Add path containing the library to the PYTHONPATH so that they can be imported without requiring
-            # the user to add `PYTHONPATH=.` before running scripts, e.g. instead of having to do
-            # `PYTHONPATH=. python main.py`, users can simply do `python main.py`
-            if job_info.bash_setup_command:
-                f.write(job_info.bash_setup_command + "\n")
-
-            # add library to PYTHONPATH
-            libraries = [str(local_job_paths.resolve_path())]
-            if job_info.python_paths is not None:
-                libraries += job_info.python_paths
-            if job_info.python_libraries:
-                libraries += job_info.python_libraries
-            f.write(f'export PYTHONPATH=$PYTHONPATH:{":".join(libraries)}\n')
-            if job_info.python_binary is None:
-                f.write(f"bash {local_job_paths.entrypoint_path_from_cwd()}\n")
-            else:
-                python_args = (
-                    job_info.python_args if job_info.python_args is not None else ""
-                )
-                if isinstance(python_args, dict):
-                    python_args = " ".join(
-                        f"--{key}={value}" for key, value in python_args.items()
-                    )
-                f.write(
-                    f"{job_info.python_binary} {local_job_paths.entrypoint_path_from_cwd()} {python_args}\n"
-                )
 
     def _save_jobid(self, local_job_paths: JobPathLogic, jobid: int):
         metadata = {
@@ -407,7 +388,8 @@ class SlurmWrapper:
         jobnames_statuses = {}
         jobid_mapping = {}
         clusters = defaultdict(list)
-        # first, we build a dictionary mapping clusters to job informations
+
+        # first, we build a dictionary mapping clusters to job information
         for jobname in jobnames:
             # TODO support having this one missing (
             jobid = self.jobid_from_jobname(jobname)
@@ -416,7 +398,7 @@ class SlurmWrapper:
             cluster = job_metadata.cluster
             clusters[cluster].append((jobid, job_metadata))
 
-        # second we call sacct on each clusters with the corresponding jobs
+        # second, we call sacct on each clusters with the corresponding jobs
         for cluster in clusters.keys():
             try:
                 job_clusters = clusters[cluster]

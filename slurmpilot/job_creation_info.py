@@ -23,9 +23,16 @@ class JobCreationInfo:
 
     # python
     python_binary: str | None = None
-    # arguments to be passed to python script, if dictionary then arguments
-    # are converted to string with `--key=value` for all key, values of the dictionary
-    python_args: str | dict | None = None
+    # Arguments to be passed to python script,
+    # if dictionary, the arguments are converted to string with `--key=value` for all key and value of the dictionary
+    # if string, then pass directly the string to python
+    # if list, then slurmpilot will schedule one job each with a jobarray
+    python_args: str | dict | list[str] | list[dict] | None = None
+
+    # number of concurrent jobs, can only be used when `python_args` is a list, will generate a line like
+    # `#SBATCH --array=0-{n_jobs}%{n_concurrent_jobs}` where `n_jobs` is the length of `python_args`
+    n_concurrent_jobs: int | None = None
+
     # path existing remotely to be included in PYTHONPATH so that they can be imported in python
     python_paths: list[str] | None = None
     # python libraries existing locally to be sent to the remote and added to the PYTHONPATH
@@ -46,7 +53,7 @@ class JobCreationInfo:
         if self.python_args:
             if self.python_binary is None:
                 logging.warning(
-                    f"Python binary not set but passing `python_args`: {self.python_args}."
+                    f"{self.jobname}: Python binary not set but passing `python_args`: {self.python_args}."
                 )
         if self.python_binary is not None:
             assert (
@@ -54,6 +61,10 @@ class JobCreationInfo:
             ), f"Must provide a python script ending with .py when using `python_binary` but got {self.entrypoint}."
         if self.src_dir is None:
             self.src_dir = "./"
+        if self.n_concurrent_jobs is not None:
+            assert isinstance(
+                self.python_args, list
+            ), "n_concurrent_jobs must be used with a list of python_args."
 
     def check_path(self):
         assert Path(
@@ -64,7 +75,7 @@ class JobCreationInfo:
             entrypoint_path.exists()
         ), f"The entrypoint could not be found at {entrypoint_path}."
 
-    def sbatch_preamble(self) -> str:
+    def sbatch_preamble(self, is_job_array: bool = False) -> str:
         """
         Spits a preamble like this one valid for sbatch:
         #SBATCH -p {partition}
@@ -75,8 +86,13 @@ class JobCreationInfo:
         res = ""
         sbatch_line = lambda config: f"#SBATCH {config}\n"
         res += sbatch_line(f"--job-name={self.jobname}")
-        res += sbatch_line(f"--output=logs/stdout")
-        res += sbatch_line(f"--error=logs/stderr")
+        if is_job_array:
+            # %a is the task id corresponding to SLURM_ARRAY_TASK_ID env variable
+            res += sbatch_line(f"--output=logs/%a.stdout")
+            res += sbatch_line(f"--error=logs/%a.stderr")
+        else:
+            res += sbatch_line(f"--output=logs/stdout")
+            res += sbatch_line(f"--error=logs/stderr")
         if self.n_cpus:
             res += sbatch_line(f"--cpus-per-task={self.n_cpus}")
         if self.partition:
