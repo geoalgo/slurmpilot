@@ -130,3 +130,4 @@ python script/evaluate_fidelity.py $python_args
 Question:
 * jobid and jobname in slurmpilot
 * log structure? jobname/logs/std-%a where %a is the array jobid?
+* how to handle list-job?

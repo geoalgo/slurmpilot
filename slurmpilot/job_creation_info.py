@@ -48,7 +48,7 @@ class JobCreationInfo:
         if self.python_args:
             if self.python_binary is None:
                 logging.warning(
-                    f"Python binary not set but passing `python_args`: {self.python_args}."
+                    f"{self.jobname}: Python binary not set but passing `python_args`: {self.python_args}."
                 )
         if self.python_binary is not None:
             assert (
