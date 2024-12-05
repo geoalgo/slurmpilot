@@ -42,7 +42,7 @@ The following should:
 The type of `JobCreationInfo.python_args` would be `Union[str, list[str]]`.
 It would be nice to be able to restart failed jobs from a list (in case of transient errors).
 
-We could also expose another function to schedule a list of jobs which would avoid to have a union for `python_args`.
+We could also expose a specific function to schedule a list of jobs:
 
 ```
 jobinfo = JobCreationInfo(
@@ -54,6 +54,11 @@ jobinfo = JobCreationInfo(
 )
 jobid = SlurmWrapper(clusters=[cluster]).schedule_jobs(jobinfo)
 ```
+
+This would allow to configure specifically array of jobs, for instance
+* handling errors
+* log naming
+* ...
 
 
 ## Code
@@ -129,4 +134,22 @@ python script/evaluate_fidelity.py $python_args
 
 Question:
 * jobid and jobname in slurmpilot
-* log structure? jobname/logs/std-%a where %a is the array jobid?
+* log structure? likely jobname/logs/std-%a where %a is the array jobid
+* how to handle list-job CLI?
+
+## Proposal
+Add `schedule_jobs` to SlurmWrapper class.
+```python
+jobid = SlurmWrapper(clusters=[cluster]).schedule_jobs(jobinfo)
+```
+
+Update logic so that arguments are sent via a file and loaded in python mode.
+
+TODOs:
+* test
+* adapt CLI, status job etc
+Done:
+* writes corresponding slurm job array
+* read args.json in `_generate_main_slurm_script` for python mode
+* add `schedule_jobs` which:
+  * writes args.json for python_args which contains a list of arguments
