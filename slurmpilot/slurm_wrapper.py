@@ -296,6 +296,9 @@ class SlurmWrapper:
                     dst=local_job_paths.resolve_path(Path(python_library).name),
                 )
         if isinstance(job_info.python_args, list):
+            # case of list of arguments which is mapped to a jobarray in slurm
+            # we write down the list of arguments in a file that is then read in the entrypoint and
+            # the $SLURM_ARRAY_TASK_ID-th argument is evaluated
             with open(local_job_paths.job_path() / "python-args.txt", "w") as f:
                 for x in job_info.python_args:
                     if isinstance(x, dict):
