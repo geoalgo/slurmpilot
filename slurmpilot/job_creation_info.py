@@ -17,6 +17,7 @@ class JobCreationInfo:
         None  # if specified a bash command that gets executed before the main script
     )
     src_dir: str | None = None
+    remote_dir: str | None = None
     exp_id: str | None = None
 
     sbatch_arguments: str | None = None  # argument to be passed to sbatch
