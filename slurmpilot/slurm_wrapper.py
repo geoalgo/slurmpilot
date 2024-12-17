@@ -113,6 +113,9 @@ class SlurmWrapper:
             cluster=job_info.cluster, jobname=job_info.jobname
         )
 
+        if job_info.entrypoint_template is not None:
+            self._create_filled_template(job_info)
+
         # generate slurm launcher script in slurmpilot dir
         local_job_paths = self._generate_local_folder(job_info)
 
@@ -274,6 +277,19 @@ class SlurmWrapper:
                 else self.config.remote_slurmpilot_path(job_info.cluster)
             ),
         )
+
+    def _create_filled_template(self, job_info: JobCreationInfo):
+        template_path = Path(job_info.src_dir).resolve() / Path(job_info.entrypoint_template)
+        with open(template_path, "r") as f:
+            content = f.read()
+
+        updated_template = content
+        for key, replace in job_info.template_data.items():
+            updated_template = updated_template.replace(key, str(replace))
+
+        entrypoint = Path(job_info.src_dir).resolve() / Path(job_info.entrypoint)
+        with open(entrypoint, 'w') as outfile:
+            outfile.write(updated_template)
 
     def _generate_local_folder(self, job_info: JobCreationInfo):
         local_job_paths = JobPathLogic(
