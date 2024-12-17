@@ -64,11 +64,12 @@ class JobCreationInfo:
         # TODO: A bit hacky, this. But I think that naming the bash file with an explicit "_template.sh"
         # is the safest way to ensure that the user doesn't accidentally use a non template as a template
         # or vice-a-versa.
-        if self.entrypoint.endswith("_template.sh"):
-            self.entrypoint_template = self.entrypoint
-            self.entrypoint = self.entrypoint[:-len("_template.sh")]
-        else:
-            self.entrypoint_template = None
+        if self.entrypoint is not None:
+            if self.entrypoint.endswith("_template.sh"):
+                self.entrypoint_template = self.entrypoint
+                self.entrypoint = self.entrypoint[:-len("_template.sh")]
+            else:
+                self.entrypoint_template = None
 
     def check_path(self):
         assert Path(
