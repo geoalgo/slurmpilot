@@ -103,10 +103,11 @@ class SlurmWrapper:
         """
         job_info.check_path()
         cluster_connection = self.connections[job_info.cluster]
-        home_dir = self.home_dir[job_info.cluster]
 
-        root_dir = job_info.remote_dir if job_info.remote_dir is not None else home_dir
-        root_path = os.path.join(root_dir, "slurmpilot")
+        if job_info.remote_dir is None:
+            root_path = self.config.remote_slurmpilot_path(job_info.cluster)
+        else:
+            root_path = job_info.remote_dir
 
         self.job_scheduling_callback.on_job_scheduled_start(
             cluster=job_info.cluster, jobname=job_info.jobname
