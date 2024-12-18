@@ -44,7 +44,7 @@ class SlurmWrapper:
         ssh_engine: str | None = None,
     ):
         """
-        :param config:
+        :param config: general and cluster configurations
         :param clusters: list of clusters to be used
         :param check_connection: whether to check the connection of clusters
         :param display_loaded_configuration: whether to display the list of loaded configuration

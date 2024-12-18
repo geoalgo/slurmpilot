@@ -33,7 +33,7 @@ class RemoteExecution:
         connected through a proxy.
         Note: We wrap fabric instead of exposing it (which is a wrapper itself) in order to be able to support
         multiple choices in the future possibly including one which is dependency free.
-        :param master:
+        :param master: hostname of the remote host which should have slurm available
         :param proxy:
         """
         self.master = master
@@ -107,7 +107,7 @@ class RemoteCommandExecutionSubprocess(RemoteExecution):
     ):
         """
         Calls native unix ssh and scp with subprocesses. Should work reliably as long as ssh and scp works in a terminal
-        :param master:
+        :param master: hostname of the remote host which should have slurm available
         :param user:
         :param proxy:
         :param local_dir: where logs are written of intermediate commands, if None, use tempdir
@@ -276,7 +276,6 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
                         )
             except paramiko.ssh_exception.SSHException as e:
                 if log_error:
-                    print(traceback.format_exc())
                     logging.info(
                         f"Command {command} failed because of connection issue {str(e)}"
                     )
