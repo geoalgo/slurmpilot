@@ -43,10 +43,6 @@ class JobCreationInfo:
     env: dict = None
     nodes: int = None  # number of nodes for this job
     nodelist: str = None
-    entrypoint_template: str | None = None
-    # Used when the bash file provided is a "template", i.e., it has keywords which should should be replaced.
-    # It is inferred in post and does not have to specified by the user.
-    template_data: dict | None = None  # dictionary with the keywords and the strings to replace them with in the template file
     
     def __post_init__(self):
         if self.python_args:
@@ -61,27 +57,14 @@ class JobCreationInfo:
         if self.src_dir is None:
             self.src_dir = "./"
 
-        # TODO: A bit hacky, this. But I think that naming the bash file with an explicit "_template.sh"
-        # is the safest way to ensure that the user doesn't accidentally use a non template as a template
-        # or vice-a-versa.
-        if self.entrypoint is not None:
-            if self.entrypoint.endswith("_template.sh"):
-                self.entrypoint_template = self.entrypoint
-                self.entrypoint = self.entrypoint[:-len("_template.sh")]
-            else:
-                self.entrypoint_template = None
-
     def check_path(self):
         assert Path(
             self.src_dir
         ).exists(), f"The src_dir path {self.src_dir} is missing."
-
-        file_name = self.entrypoint if self.entrypoint_template is None else self.entrypoint_template
-        entrypoint_path = Path(self.src_dir) / file_name
-
-        assert(
+        entrypoint_path = Path(self.src_dir) / self.entrypoint
+        assert (
             entrypoint_path.exists()
-        ), f"The entrypoint template could not be found at {entrypoint_path}."
+        ), f"The entrypoint could not be found at {entrypoint_path}."
 
     def sbatch_preamble(self) -> str:
         """

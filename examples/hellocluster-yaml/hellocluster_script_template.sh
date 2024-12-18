@@ -11,7 +11,7 @@ for i in {1..$$UPPERBOUND$$};
 done
 echo "Finished at $(date)";
 
-# They templates could also be used for more advanced stuff. E.g. (taken from slurmpilot-freiburg)
+# They templates could also be used for more advanced stuff. E.g.
 
 # git clone https://github.com/EleutherAI/lm-evaluation-harness
 # cd lm-evaluation-harness
