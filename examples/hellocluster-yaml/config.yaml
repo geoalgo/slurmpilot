@@ -17,7 +17,7 @@ script:
 
 template:
   entrypoint_template: hellocluster_script_template.sh
-  keys:
+  entries:
     # The keywords and the values to replace them with if a template bash script is used as the entrypoint, ignored otherwise
     # Remember that every keyword in the bash script must be replaced with a (valid) value for the script to run properly.
     $$UPPERBOUND$$: 3

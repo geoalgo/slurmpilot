@@ -7,6 +7,7 @@ from slurmpilot.config import default_cluster_and_partition
 from slurmpilot.slurm_wrapper import SlurmWrapper, JobCreationInfo
 from slurmpilot.util import unify
 
+
 def load_config(config_path):
     """
     Load configuration from a YAML file using OmegaConf.
@@ -14,6 +15,7 @@ def load_config(config_path):
     :return: Parsed configuration as an OmegaConf dictionary.
     """
     return OmegaConf.load(config_path)
+
 
 def write_filled_template_to_file(
     template_path: str, output_path: str, template_data: dict
@@ -27,6 +29,7 @@ def write_filled_template_to_file(
 
     with open(output_path, "w") as outfile:
         outfile.write(updated_template)
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -72,19 +75,23 @@ def main():
     write_filled_template_to_file(
         template_path=template_path,
         output_path=output_path,
-        template_data=template_config.keys,
+        template_data=OmegaConf.to_container(template_config.entries, resolve=True),
     )
 
     for key in ["partition", "jobname"]:
         job_config.pop(key, None)
+
+    print(dict(job_config))
+    print(dict(script_config))
+    print(cluster, partition, jobname)
 
     # Job Information
     jobinfo = JobCreationInfo(
         cluster=cluster,
         partition=partition,
         jobname=jobname,
-        **job_config,
-        **script_config,
+        **OmegaConf.to_container(job_config, resolve=True),
+        **OmegaConf.to_container(script_config, resolve=True),
     )
 
     jobid = slurm.schedule_job(jobinfo)
@@ -93,6 +100,7 @@ def main():
     print(slurm.status(jobname))
     print("--logs:")
     slurm.print_log(jobname=jobname)
+
 
 if __name__ == "__main__":
     main()
