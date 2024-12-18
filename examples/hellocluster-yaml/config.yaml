@@ -1,0 +1,24 @@
+# The cluster to run on
+cluster: MY_CLUSTER
+
+# Everything that goes into the SBATCH preamble goes here
+job:
+  partition: MY_PARTITION
+  n_cpus: 1
+  max_runtime_minutes: 60
+  jobname: my-experiment
+
+# Script related settings
+script:
+  entrypoint: hellocluster_script.sh
+  src_dir: ./
+  env:
+    API_TOKEN: DUMMY
+
+template:
+  entrypoint_template: hellocluster_script_template.sh
+  entries:
+    # The keywords and the values to replace them with if a template bash script is used as the entrypoint, ignored otherwise
+    # Remember that every keyword in the bash script must be replaced with a (valid) value for the script to run properly.
+    $$UPPERBOUND$$: 3
+    $$GIT_COMMIT_OR_BRANCH$$: big-refactor
