@@ -3,6 +3,7 @@ import socket
 import subprocess
 import tempfile
 import time
+import traceback
 from dataclasses import dataclass
 from getpass import getpass
 from pathlib import Path
@@ -10,6 +11,7 @@ import tarfile
 
 import paramiko
 
+from slurmpilot.callback import format_highlight
 from slurmpilot.util import path_size_human_readable
 
 logger = logging.getLogger(__name__)
@@ -95,6 +97,119 @@ class LocalCommandExecution(RemoteExecution):
         raise NotImplementedError()
 
 
+class RemoteCommandExecutionSubprocess(RemoteExecution):
+    def __init__(
+        self,
+        master: str,
+        user: str | None = None,
+        proxy: str | None = None,
+        local_dir: str | Path = None,
+    ):
+        """
+        Calls native unix ssh and scp with subprocesses. Should work reliably as long as ssh and scp works in a terminal
+        :param master:
+        :param user:
+        :param proxy:
+        :param local_dir: where logs are written of intermediate commands, if None, use tempdir
+        """
+        super().__init__(master=master, proxy=proxy, user=user)
+        assert (
+            proxy is None
+        ), "not supported"  # would just need to add the proxy in the ssh/scp call
+        self.local_dir = local_dir if local_dir else tempfile.mkdtemp()
+        self.local_dir = Path(self.local_dir)
+
+    def run(
+        self, command: str, pty: bool = False, env: dict | None = None, retries: int = 0
+    ) -> CommandResult:
+        command = f"ssh {self._remote_ssh_hostname()} {command}"
+        return self._run_shell_command(
+            command=command, pty=pty, env=env, retries=retries
+        )
+
+    def _run_shell_command(
+        self, command: str, pty: bool = False, env: dict | None = None, retries: int = 0
+    ) -> CommandResult:
+        # TODO specify dir
+        with open(self.local_dir / "std.out", "w") as stdout:
+            with open(self.local_dir / "std.err", "w") as stderr:
+                process = subprocess.Popen(
+                    command.split(" "), stderr=stderr, stdout=stdout
+                )
+
+        # wait for ssh to be finished, return code is 100 in case of timeout
+        code = 100
+        for _ in range(20):
+            code = process.poll()
+            if code is not None:
+                break
+            time.sleep(1)
+
+        with open(self.local_dir / "std.out", "r") as f:
+            stdout = f.read()
+        with open(self.local_dir / "std.err", "r") as f:
+            stderr = f.read()
+
+        return CommandResult(
+            command=command,
+            failed=code != 0,
+            stderr=stderr,
+            stdout=stdout,
+            return_code=code,
+        )
+
+    def _remote_ssh_hostname(self) -> str:
+        # returns a string like salinasd@hostname
+        user_str = "" if self.user is None else self.user + "@"
+        return f"{user_str}{self.master}"
+
+    def upload_file(self, local_path: Path, remote_path: Path = Path("/")):
+        res = self._run_shell_command(
+            command=f"scp {local_path} {self._remote_ssh_hostname()}:{remote_path}",
+        )
+        if res.failed:
+            raise ValueError(
+                f"Failed to upload {local_path} to {self.master}: {res.stderr}"
+            )
+
+    def upload_folder(self, local_path: Path, remote_path: Path = Path("/")):
+        logger.info(
+            f"Running rsync from {format_highlight(str(local_path))} to {format_highlight(str(remote_path))}"
+        )
+        user_prefix = f"{self.user}@" if self.user else ""
+        command = f"rsync -aPvz {local_path} {user_prefix}{self.master}:{remote_path}"
+        res = self._run_shell_command(command=command)
+        if res.failed:
+            raise ValueError(
+                f"Failed to upload {local_path} to {self.master}: {res.stderr}"
+            )
+
+    def download_file(self, remote_path: Path, local_path: Path):
+        user_str = "" if self.user is None else self.user + "@"
+        res = self._run_shell_command(
+            command=f"scp {user_str}{self.master}:{remote_path} {local_path}",
+        )
+        if res.failed:
+            raise ValueError(f"Failed to upload {local_path} to {self.master}.")
+
+    def download_folder(self, remote_path: Path, local_path: Path):
+        """
+        :param remote_path:
+        :param local_path:
+        :return:
+        """
+        # Note, we could also tar the whole thing like we do to send, the reason we pick rsync is that often
+        # some files will only be present and rsync allows to not copy those based on hashes
+        logger.info(
+            f"Running rsync from {format_highlight(remote_path)} to {format_highlight(local_path)}"
+        )
+        user_prefix = f"{self.user}@" if self.user else ""
+        command = (
+            f"rsync -aPvz {user_prefix}{self.master}:{remote_path} {local_path.parent}"
+        )
+        self._run_shell_command(command=command)
+
+
 class RemoteCommandExecutionFabrik(RemoteExecution):
     # TODO we could create a dependency free version with `getstatusoutput` that calls ssh command
     def __init__(
@@ -156,16 +271,19 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
                 # TODO show error when failed
                 if fabric_result.failed:
                     if log_error:
-                        logging.debug(
+                        logging.info(
                             f"Command {command} failed\n{fabric_result.stderr}"
                         )
             except paramiko.ssh_exception.SSHException as e:
                 if log_error:
-                    logging.debug(
+                    print(traceback.format_exc())
+                    logging.info(
                         f"Command {command} failed because of connection issue {str(e)}"
                     )
             except socket.gaierror as e:
                 logging.error(str(e))
+                # print trace of e
+                print(traceback.format_exc())
                 raise ValueError(
                     f"Could not connect to hostname {self.master}, check your ssh connection."
                 )
@@ -238,19 +356,11 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
         """
         # Note, we could also tar the whole thing like we do to send, the reason we pick rsync is that often
         # some files will only be present and rsync allows to not copy those based on hashes
-        logger.info(f"Running rsync from {remote_path} to {local_path}")
+        logger.info(
+            f"Running rsync from {format_highlight(remote_path)} to {format_highlight(local_path)}"
+        )
+        user_prefix = f"{self.user}@" if self.user else ""
         command = (
-            f"rsync -aPvz {self.user}@{self.master}:{remote_path} {local_path.parent}"
+            f"rsync -aPvz {user_prefix}{self.master}:{remote_path} {local_path.parent}"
         )
         subprocess.run(command.split(" "), check=True)
-
-
-if __name__ == "__main__":
-    connection = RemoteCommandExecutionFabrik(
-        master="YOURCLUSTER",
-        user="YOURUSER",
-        prompt_for_login_password=True,
-        prompt_for_passphrase=False,
-    )
-
-    print(connection.run("ls"))

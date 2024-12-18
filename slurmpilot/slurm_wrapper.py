@@ -23,6 +23,7 @@ from slurmpilot.jobpath import JobPathLogic
 from slurmpilot.remote_command import (
     RemoteCommandExecutionFabrik,
     RemoteExecution,
+    RemoteCommandExecutionSubprocess,
 )
 from slurmpilot.slurm_job_status import SlurmJobStatus
 from slurmpilot.util import catchtime
@@ -40,7 +41,23 @@ class SlurmWrapper:
         clusters: List[str] | None = None,
         check_connection: bool = True,
         display_loaded_configuration: bool = False,
+        ssh_engine: str | None = None,
     ):
+        """
+        :param config:
+        :param clusters: list of clusters to be used
+        :param check_connection: whether to check the connection of clusters
+        :param display_loaded_configuration: whether to display the list of loaded configuration
+        :param ssh_engine: one of "ssh" or "paramiko". "ssh" requires a unix machine and will use directly ssh
+        from the unix machine, "paramiko" will use an intermediate python library.
+        """
+        if ssh_engine is None:
+            #  right now we use RemoteCommandExecutionSubprocess as it is more bullet proof than paramiko which
+            #  causes sometimes weird authentication issues (which dont happen with native ssh).
+            ssh_engine = "ssh"
+        else:
+            assert ssh_engine in ["ssh", "paramiko"]
+        self.ssh_engine = ssh_engine
         if config is not None:
             self.config = config
         else:
@@ -63,12 +80,18 @@ class SlurmWrapper:
         self.home_dir = {}
         for cluster, config in self.config.cluster_configs.items():
             if cluster in clusters:
-                self.connections[cluster] = RemoteCommandExecutionFabrik(
-                    master=config.host,
-                    user=config.user,
-                    prompt_for_login_password=config.prompt_for_login_password,
-                    prompt_for_login_passphrase=config.prompt_for_login_passphrase,
-                )
+                if self.ssh_engine == "ssh":
+                    self.connections[cluster] = RemoteCommandExecutionSubprocess(
+                        master=config.host,
+                        user=config.user,
+                    )
+                else:
+                    self.connections[cluster] = RemoteCommandExecutionFabrik(
+                        master=config.host,
+                        user=config.user,
+                        prompt_for_login_password=config.prompt_for_login_password,
+                        prompt_for_login_passphrase=config.prompt_for_login_passphrase,
+                    )
                 if check_connection:
                     try:
                         logger.debug(f"Try sending command to {cluster}.")
@@ -117,9 +140,7 @@ class SlurmWrapper:
         local_job_paths = self._generate_local_folder(job_info)
 
         # tar and send slurmpilot dir
-        remote_job_paths = self.remote_path(
-            job_info, root_path=root_path
-        )
+        remote_job_paths = self.remote_path(job_info, root_path=root_path)
         self.job_scheduling_callback.on_sending_artifact(
             localpath=str(local_job_paths.resolve_path()),
             remotepath=str(remote_job_paths.resolve_path()),
@@ -240,10 +261,6 @@ class SlurmWrapper:
                 "Could not execute sbatch on the remote host, error:" + str(e)
             )
         if res.failed:
-            raise ValueError(
-                f"Could not submit job, got the following error:\n{res.stderr}"
-            )
-        elif len(res.stderr) > 0:
             raise ValueError(
                 f"Could not submit job, got the following error:\n{res.stderr}"
             )
@@ -377,11 +394,10 @@ class SlurmWrapper:
 
     @staticmethod
     def latest_job(
-        config: Config | None = None, pattern: str | None = None
+        config: Config | None = None,
     ) -> JobMetadata:
         """
         :param config:
-        :param pattern: if passed, then consider only jobs whose name contains `pattern`
         :return:
         """
         if config is None:
@@ -541,11 +557,9 @@ class SlurmWrapper:
             root_path=self.config.remote_slurmpilot_path(cluster),
         )
         try:
-            self.connections[cluster].download_file(
-                remote_path.stderr_path(), local_path.stderr_path()
-            )
-            self.connections[cluster].download_file(
-                remote_path.stdout_path(), local_path.stdout_path()
+            self.connections[cluster].download_folder(
+                remote_path.log_path(),
+                local_path.log_path(),
             )
         except FileNotFoundError:
             return ""
