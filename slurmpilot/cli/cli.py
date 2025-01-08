@@ -20,8 +20,10 @@ def jobname_from_cli_args_or_take_latest(config, args):
             matches = [m for m in metadatas if args.job in m.jobname]
             if len(matches) > 0:
                 print(f"Found {len(matches)} matches, using the first one.")
-            return matches[0]
+                return matches[0]
 
+            print(f"Could not find any jobnames which contain {format_jobname(args.job)}")
+            return None
     else:
         job_metadata = SlurmWrapper.latest_job()
         print(
@@ -82,22 +84,29 @@ def main():
         )
     config = load_config()
 
-    if is_command_requiring_jobname:
+    if is_command_requiring_jobname or args.job:
         job = jobname_from_cli_args_or_take_latest(config, args)
+
+        if job is None:
+            return
+
         slurm = SlurmWrapper(config=config, clusters=[job.cluster])
-        # TODO use match
-        if args.log:
-            print(slurm.format_string_jobname("Displaying log for job", job.jobname))
-            slurm.print_log(jobname=job.jobname)
-        if args.download:
-            print(slurm.format_string_jobname("Downloading job", job.jobname))
-            slurm.download_job(jobname=job.jobname)
-        if args.status:
-            print(slurm.format_string_jobname("Displaying status for job", job.jobname))
-            print(slurm.status(jobnames=[job.jobname])[0])
-        if args.stop:
-            print(slurm.format_string_jobname("Stopping job", job.jobname))
-            slurm.stop_job(jobname=job.jobname)
+        match args:
+            case args if args.log:
+                print(slurm.format_string_jobname("Displaying log for job", job.jobname))
+                slurm.print_log(jobname=job.jobname)
+            case args if args.download:
+                print(slurm.format_string_jobname("Downloading job", job.jobname))
+                slurm.download_job(jobname=job.jobname)
+            case args if args.status:
+                print(slurm.format_string_jobname("Displaying status for job", job.jobname))
+                print(slurm.status(jobnames=[job.jobname])[0])
+            case args if args.stop:
+                print(slurm.format_string_jobname("Stopping job", job.jobname))
+                slurm.stop_job(jobname=job.jobname)
+            case _:
+                print(slurm.format_string_jobname("Displaying status for job", job.jobname))
+                print(slurm.status(jobnames=[job.jobname])[0])
     else:
         if args.test_ssh_connections:
             slurm = SlurmWrapper(config=config)
