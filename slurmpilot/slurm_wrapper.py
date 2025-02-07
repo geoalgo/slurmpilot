@@ -21,12 +21,10 @@ from slurmpilot.job_creation_info import JobCreationInfo
 from slurmpilot.job_metadata import JobMetadata, list_metadatas
 from slurmpilot.jobpath import JobPathLogic
 from slurmpilot.remote_command import (
-    RemoteCommandExecutionFabrik,
     RemoteExecution,
     RemoteCommandExecutionSubprocess,
 )
 from slurmpilot.slurm_job_status import SlurmJobStatus
-from slurmpilot.util import catchtime
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -86,6 +84,10 @@ class SlurmWrapper:
                         user=config.user,
                     )
                 else:
+                    from slurmpilot.remote_command import (
+                        RemoteCommandExecutionFabrik,
+                    )
+
                     self.connections[cluster] = RemoteCommandExecutionFabrik(
                         master=config.host,
                         user=config.user,
@@ -267,6 +269,7 @@ class SlurmWrapper:
         else:
             # should be something like 'Submitted batch job 11301013'
             stdout = res.stdout
+            stderr = res.stderr
             slurm_submitted_msg = "Submitted batch job "
             if stdout.startswith(slurm_submitted_msg):
                 matches = re.match(slurm_submitted_msg + r"(\d*)", stdout)
@@ -277,7 +280,7 @@ class SlurmWrapper:
                 return jobid
             else:
                 raise ValueError(
-                    f"Job scheduled without error but could not parse slurm output: {stdout}"
+                    f"Job scheduled without error but could not parse slurm output: \nstdout:\n{stdout}\nstderr:\n{stderr}"
                 )
 
     def remote_path(self, job_info: JobCreationInfo, root_path: str | None = None):
