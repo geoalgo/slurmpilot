@@ -9,8 +9,6 @@ from getpass import getpass
 from pathlib import Path
 import tarfile
 
-import paramiko
-
 from slurmpilot.callback import format_highlight
 from slurmpilot.util import path_size_human_readable
 
@@ -257,6 +255,8 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
         retries: int = 0,
         log_error: bool = True,
     ) -> CommandResult:
+        import paramiko
+
         success = False
         num_trial = 1 + retries
         while not success and num_trial > 0:

@@ -12,8 +12,6 @@ from pathlib import Path
 from typing import List
 
 import pandas as pd
-import paramiko
-from paramiko.ssh_exception import AuthenticationException
 
 from slurmpilot.callback import SlurmSchedulerCallback, format_highlight
 from slurmpilot.config import Config, load_config
@@ -102,7 +100,8 @@ class SlurmWrapper:
                         )
                         home_res = self.connections[cluster].run("echo $HOME")
                         self.home_dir[cluster] = Path(home_res.stdout.strip("\n"))
-                    except (gaierror, AuthenticationException) as e:
+                    # except (gaierror, AuthenticationException) as e:
+                    except Exception as e:
                         traceback.print_exc()
                         raise ValueError(
                             f"Cannot connect to cluster {cluster}. Verify your ssh access. Error: {str(e)}"
@@ -479,7 +478,7 @@ class SlurmWrapper:
                             print(line, str(e))
                             continue
             # TODO abstract it
-            except paramiko.ssh_exception.AuthenticationException as e:
+            except Exception as e:
                 logging.warning(
                     f"Could not connect to cluster {cluster}, make sure your ssh connection works."
                 )
