@@ -42,7 +42,7 @@ The following should:
 The type of `JobCreationInfo.python_args` would be `Union[str, list[str]]`.
 It would be nice to be able to restart failed jobs from a list (in case of transient errors).
 
-We could also expose another function to schedule a list of jobs which would avoid to have a union for `python_args`.
+We could also expose a specific function to schedule a list of jobs:
 
 ```
 jobinfo = JobCreationInfo(
@@ -54,6 +54,11 @@ jobinfo = JobCreationInfo(
 )
 jobid = SlurmWrapper(clusters=[cluster]).schedule_jobs(jobinfo)
 ```
+
+This would allow to configure specifically array of jobs, for instance
+* handling errors
+* log naming
+* ...
 
 
 ## Code
@@ -129,5 +134,55 @@ python script/evaluate_fidelity.py $python_args
 
 Question:
 * jobid and jobname in slurmpilot
-* log structure? jobname/logs/std-%a where %a is the array jobid?
-* how to handle list-job?
+* log structure? likely jobname/logs/std-%a where %a is the array jobid
+* how to handle list-job CLI?
+
+## Proposal
+Add `schedule_jobs` to SlurmWrapper class.
+```python
+jobid = SlurmWrapper(clusters=[cluster]).schedule_jobs(jobinfo)
+```
+
+Update logic so that arguments are sent via a file and loaded in python mode.
+
+TODOs:
+* test
+* adapt CLI, status job etc
+Done:
+* writes corresponding slurm job array
+* read args.json in `_generate_main_slurm_script` for python mode
+* add `schedule_jobs` which:
+  * writes args.json for python_args which contains a list of arguments
+
+
+## CLI
+
+We discuss here how the CLI will behave after the change.
+For single job, we want the CLI to be unchanged.
+
+For job-array, we need to discuss `--log`, `--download`, `--status`, `--stop` and `--list-jobs`.
+WLOG, assume we have 3 jobs with a base jobname `job-array`.
+
+* `sp --log`: assuming job-array is the last job, log `job-array_N` 
+* `sp --log job-array`: logs the last job in the array
+* `sp --log job-array_N`:  logs the N-th job in the array
+=> mainly impact the logic of the mapping between the string passed in CLI and what is fetched.
+
+*status.* change, similar case as list-jobs
+*stop.* does not change if we stop only the parent job
+*download.* does not change?
+
+* `sp --list--jobs`:  
+```
+                         job           date cluster       status                         full jobname
+job-array_2 05/12/24-09:13 kis  ️Running 🏃  ktabpfn/job-array_2
+job-array_1 04/12/24-13:49 kis Completed ✅  ktabpfn/job-array_1
+job-array_0 04/12/24-13:49 kis Completed ✅  ktabpfn/job-array_0
+scalarjob   04/12/24-13:49 kis Completed ✅  dummy/scalarjob
+```
+
+Done:
+* list-jobs
+* download
+* log
+* stop

@@ -55,3 +55,18 @@ def path_size_human_readable(path: str) -> str:
         return f"{size / 1024 ** 2:.2f} MB"
     elif size < 1024**4:
         return f"{size / 1024 ** 3:.2f} GB"
+
+
+def parse_nseconds_slurm_status(elapsed_str: str) -> int:
+    # parse slurm number of seconds from elapsed string which is of the form
+    # 'NDAYS-NHOURS:NMINUTES:NSECONDS' or 'NHOURS:NMINUTES:NSECONDS' for job that lasted less than a day
+    if "-" in elapsed_str:
+        n_days, elapsed_str = elapsed_str.split("-")
+        n_days = int(n_days)
+    else:
+        n_days = 0
+    n_hours, n_minutes, n_seconds = elapsed_str.split(":")
+    n_seconds = (
+        n_days * 24 * 3600 + int(n_hours) * 3600 + int(n_minutes) * 60 + int(n_seconds)
+    )
+    return n_seconds

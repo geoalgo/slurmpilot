@@ -60,9 +60,11 @@ class JobPathLogic:
         return self.resolve_path("logs")
 
     def stderr_path(self: str) -> Path:
+        # TODO case of jobarray
         return self.log_path() / "stderr"
 
     def stdout_path(self) -> Path:
+        # TODO case of jobarray
         return self.log_path() / "stdout"
 
     def src_path(self) -> Path:
