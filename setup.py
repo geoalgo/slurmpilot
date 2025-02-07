@@ -7,7 +7,6 @@ setup(
     install_requires=[
         "pyyaml",
         "pandas",
-        "fabric",
     ],
     extras_require={
         "dev": ["pytest", "black", "pre-commit"],

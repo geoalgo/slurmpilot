@@ -78,6 +78,6 @@ def list_metadatas(root: Path, n_jobs: int | None = None) -> list[JobMetadata]:
         with open(file, "r") as f:
             try:
                 jobs.append(JobMetadata.from_json(f.read()))
-            except json.decoder.JSONDecodeError:
+            except (json.decoder.JSONDecodeError, TypeError) as _:
                 pass
     return jobs

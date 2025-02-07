@@ -21,8 +21,8 @@ from slurmpilot.job_creation_info import JobCreationInfo
 from slurmpilot.job_metadata import JobMetadata, list_metadatas
 from slurmpilot.jobpath import JobPathLogic
 from slurmpilot.remote_command import (
-    RemoteCommandExecutionFabrik,
     RemoteExecution,
+    RemoteCommandExecutionSubprocess,
 )
 from slurmpilot.slurm_job_status import SlurmJobStatus
 from slurmpilot.util import catchtime
@@ -63,11 +63,9 @@ class SlurmWrapper:
         self.home_dir = {}
         for cluster, config in self.config.cluster_configs.items():
             if cluster in clusters:
-                self.connections[cluster] = RemoteCommandExecutionFabrik(
+                self.connections[cluster] = RemoteCommandExecutionSubprocess(
                     master=config.host,
                     user=config.user,
-                    prompt_for_login_password=config.prompt_for_login_password,
-                    prompt_for_login_passphrase=config.prompt_for_login_passphrase,
                 )
                 if check_connection:
                     try:
@@ -117,9 +115,7 @@ class SlurmWrapper:
         local_job_paths = self._generate_local_folder(job_info)
 
         # tar and send slurmpilot dir
-        remote_job_paths = self.remote_path(
-            job_info, root_path=root_path
-        )
+        remote_job_paths = self.remote_path(job_info, root_path=root_path)
         self.job_scheduling_callback.on_sending_artifact(
             localpath=str(local_job_paths.resolve_path()),
             remotepath=str(remote_job_paths.resolve_path()),
@@ -241,15 +237,12 @@ class SlurmWrapper:
             )
         if res.failed:
             raise ValueError(
-                f"Could not submit job, got the following error:\n{res.stderr}"
-            )
-        elif len(res.stderr) > 0:
-            raise ValueError(
-                f"Could not submit job, got the following error:\n{res.stderr}"
+                f"Could not submit job, got the following error:\n{res.stderr}\n{res.stdout}"
             )
         else:
             # should be something like 'Submitted batch job 11301013'
             stdout = res.stdout
+            stderr = res.stderr
             slurm_submitted_msg = "Submitted batch job "
             if stdout.startswith(slurm_submitted_msg):
                 matches = re.match(slurm_submitted_msg + r"(\d*)", stdout)
