@@ -27,8 +27,11 @@ This library is also influenced by [Sagemaker python API](https://sagemaker.read
 some similarities.
 
 On the Slurm world, a similar library is [Submit](https://github.com/facebookincubator/submitit).
-Compared to Submit, we aim to support more features for easy experimenting such as sending source files, or CLI job 
-launching and access to logs or job information. We also deliberately avoid serialization and rather send source files.
+Compared to Submit, we support launching on any cluster from your local machine and also aim
+at having more features for easy experimenting such as sending source files, or CLI job 
+launching and access to logs or job information. We also deliberately avoid serialization and rather send source files
+which can avoid issues such as [import problems](https://github.com/facebookincubator/submitit/blob/main/docs/tips.md)
+requiring to structure your code in a specific way. 
 
 ## Installing
 
