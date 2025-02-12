@@ -89,8 +89,6 @@ class SlurmWrapper:
                     self.connections[cluster] = RemoteCommandExecutionFabrik(
                         master=config.host,
                         user=config.user,
-                        prompt_for_login_password=config.prompt_for_login_password,
-                        prompt_for_login_passphrase=config.prompt_for_login_passphrase,
                     )
                 if check_connection:
                     try:

@@ -35,8 +35,6 @@ class ClusterConfig:
     account: str | None = None
     user: str | None = None
     default_partition: str | None = None
-    prompt_for_login_passphrase: bool = False  # whether to prompt for ssh passphrase
-    prompt_for_login_password: bool = False  # whether to prompt for ssh password
 
 
 class Config:

@@ -13,8 +13,7 @@ The key features are:
 Essentially we want to make it much easier and faster for user to run experiments on Slurm and reach the quality of
 cloud usage.
 
-Important note: Right now, the library is very much work in progress. It is usable (I am using it for all my
-experiments) but the documentation is yet to be made and API has not been frozen yet.
+**Important note:** Right now, the library is very much work in progress and the API has not been frozen yet. If you use it, please consider providing your feedback!  
 
 **What about other tools?**
 
@@ -24,9 +23,12 @@ The goal of this project is to ultimately provide a similar high-quality user ex
 on slurm and not cloud machines.
 Extending skypilot to support seems hard given the different nature of slurm and cloud (for instance not all slurm
 cluster could run docker) and hence this library was made rather than just contributing to skypilot.
-
 This library is also influenced by [Sagemaker python API](https://sagemaker.readthedocs.io/en/stable/) and you may find
 some similarities.
+
+On the Slurm world, a similar library is [Submit](https://github.com/facebookincubator/submitit).
+Compared to Submit, we aim to support more features for easy experimenting such as sending source files, or CLI job 
+launching and access to logs or job information. We also deliberately avoid serialization and rather send source files.
 
 ## Installing
 
@@ -65,9 +67,6 @@ account: "AN_ACCOUNT"
 # optional, allow to avoid the need to specify the partition
 default_partition: "NAME_OF_PARTITION_TO_BE_USED_BY_DEFAULT"
 # optional (default to false), whether you should be prompted to use a login password for ssh
-prompt_for_login_password: true
-# optional (default to false), whether you should be prompted to use a login passphrase for ssh
-prompt_for_login_passphrase: false
 ```
 
 In addition, you can configure `~/slurmpilot/config/general.yaml` with the following:
@@ -110,11 +109,11 @@ jobid = slurm.schedule_job(jobinfo)
 
 Here we created a job in the default cluster and partition. A couple of points:
 
-* `cluster`: you can use any cluster `YOURCLUSTER` as long as the file `config/clusters/YOURCLUSTER.yaml` exists, that
-  the hostname is reachable through ssh and that Slurm is installed on the host.
+* `cluster`: you can use any cluster `YOURCLUSTER` as long as the file `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`
+exists, that the hostname is reachable through ssh and that Slurm is installed on the host. 
 * `jobname` must be unique, we use `unify` which appends a unique suffix to ensure unicity even if the scripts is
-  launched multiple times. Nested folders can be used, in this case, files will be written under "~
-  /slurmpilot/jobs/examples/hello-cluster..."
+  launched multiple times. Nested folders can be used, in this case, files will be written under `~
+  /slurmpilot/jobs/examples/hello-cluster/`
 * `entrypoint` is the script we want to launched and should be present in `{src_dir}/{entrypoint}`
 * `n_cpus` is the number of CPUs, we can control other slurm arguments such as number of GPUs, number of nodes etc
 * `env` allows to pass environment variable to the script that is being remotely executed
@@ -122,7 +121,7 @@ Here we created a job in the default cluster and partition. A couple of points:
 ### Workflow
 
 When scheduling a job, the files required to run it are first copied to `~/slurmpilot/jobs/YOUR_JOB_NAME` and then
-sent to the remote host to `~/slurmpilot/jobs/YOUR_JOB_NAME` (those defaults paths are modifiable).
+sent to the remote host to `~/slurmpilot/jobs/YOUR_JOB_NAME`.
 
 In particular, the following files are generated locally under `~/slurmpilot/jobs/YOUR_JOB_NAME`:
 
@@ -139,7 +138,7 @@ see `Other ways to specify configurations` section).
 
 ### Scheduling python jobs
 
-If you want to schedule directly a Python jobs, you can also do:
+If you want to schedule directly a Python job, you can also do:
 
 ```python
 jobinfo = JobCreationInfo(
@@ -162,6 +161,8 @@ with the binary and the arguments provided, you can see the full example
 [launch_hellocluster_python.py](examples%2Fhellocluster-python%2Flaunch_hellocluster_python.py).
 Note that you can also set `bash_setup_command` which allows to run some command before
 calling your python script (for instance to setup the environment, activate conda, setup a server ...).
+
+If you pass a **list of arguments**, SlurmPilot will create a job-array with one job per argument.
 
 ### CLI
 
