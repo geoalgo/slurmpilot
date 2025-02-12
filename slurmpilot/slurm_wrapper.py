@@ -5,7 +5,6 @@ import re
 import shutil
 import time
 import traceback
-from _socket import gaierror
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
