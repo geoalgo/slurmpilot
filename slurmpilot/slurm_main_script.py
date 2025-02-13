@@ -87,7 +87,7 @@ def _generate_python_slurm_script(
 def generate_main_slurm_script(
     job_info: JobCreationInfo,
     entrypoint_path_from_cwd: Path,
-    jobpath: Path,
+    remote_jobpath: Path,
 ) -> str:
     """
     Generates a sbatch script for the given job information.
@@ -98,7 +98,7 @@ def generate_main_slurm_script(
     by reading the `SLURM_ARRAY_TASK_ID`-th line of python-args.txt and passing it as an argument to the python script.
     :param job_info:
     :param entrypoint_path_from_cwd:
-    :param jobpath:
+    :param remote_jobpath: path on the remote node of the job
     :return:
     """
     is_job_array = isinstance(job_info.python_args, list)
@@ -114,7 +114,7 @@ def generate_main_slurm_script(
         if is_python_mode:
             f.write(
                 _generate_python_slurm_script(
-                    job_info, entrypoint_path_from_cwd, jobpath
+                    job_info, entrypoint_path_from_cwd, remote_jobpath
                 )
             )
         else:

@@ -332,10 +332,14 @@ class SlurmWrapper:
                         x = " ".join(f"--{k}={v}" for k, v in x.items())
                     f.write(x + "\n")
         with open(local_job_paths.slurm_entrypoint_path(), "w") as f:
+            remote_path = JobPathLogic.from_jobname(
+                jobname=job_info.jobname,
+                root_path=self.config.remote_slurmpilot_path(job_info.cluster),
+            )
             slurm_script = generate_main_slurm_script(
                 job_info=job_info,
                 entrypoint_path_from_cwd=local_job_paths.entrypoint_path_from_cwd(),
-                jobpath=local_job_paths.resolve_path(),
+                remote_jobpath=remote_path.resolve_path(),
             )
             f.write(slurm_script)
 

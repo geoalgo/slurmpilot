@@ -80,7 +80,7 @@ export PYTHONPATH=$PYTHONPATH:{jobpath}
             n_concurrent_jobs=2,
         ),
         entrypoint_path_from_cwd=Path(entrypoint_path_from_cwd),
-        jobpath=Path(jobpath),
+        remote_jobpath=Path(jobpath),
     )
     show_first_difference(got, expected)
     print(r"got: \n", got)
