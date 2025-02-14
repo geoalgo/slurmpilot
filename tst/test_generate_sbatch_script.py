@@ -42,7 +42,7 @@ export PYTHONPATH=$PYTHONPATH:{jobpath}
             python_args=python_args,
         ),
         entrypoint_path_from_cwd=Path(entrypoint_path_from_cwd),
-        jobpath=Path(jobpath),
+        remote_jobpath=Path(jobpath),
     )
     show_first_difference(got, expected)
     print(r"got: \n", got)
