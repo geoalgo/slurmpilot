@@ -83,11 +83,12 @@ class Config:
     def local_slurmpilot_path(self) -> Path:
         return Path(self.general_config.local_path).expanduser()
 
-    def remote_slurmpilot_path(self, cluster: str) -> Path:
-        remote_path = self.cluster_configs[cluster].remote_path
-        if remote_path is None:
-            remote_path = self.general_config.remote_path
-        return Path(remote_path)
+    def remote_slurmpilot_path(self, cluster: str | None = None) -> Path:
+        # first look at cluster config, then general config then default
+        if cluster in self.cluster_configs:
+            return Path(self.cluster_configs[cluster].remote_path)
+        else:
+            return Path(self.general_config.remote_path)
 
 
 def load_yaml(path: Path) -> dict:

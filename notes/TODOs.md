@@ -1,13 +1,13 @@
 **TODOs**
-
-* high: better support to launch series of experiments, see `notes/list_of_jobs.md`
+* high: option in list-jobs to not list all tasks in job array
+* high: support option to list jobs only for a given job-array
 * high: explain examples in readme
 * high: pipeline to publish pypi version
 * high: unify requirements and poetry
 * high/medium: support using env variable for ssh passphrase
 * medium: discuss getting out of your way philosophy of the tool
+* medium: allow to purge local/remote files of a job
 * medium: add way to show metadata, sp --metadata YOURJOB
-* medium: report runtime in sp --list_jobs
 * medium: make script execution independent of cwd and dump variable to enforce reproducibility
 * medium: support local execution, see `notes/running_locally.md`
 * medium: allow to copy only python files (or as skypilot keep only files .gitignore)
@@ -17,11 +17,13 @@
 * medium: rerun/restart job (useful in case of transient error)
 * medium: download in batch
 * medium: chain of jobs
-* low: support numerating suffix "-01", "-2" instead of random names
+* medium: load cluster lazily when calling Slurmwrapper, only load the cluster dynamically when launching job, listing 
+status etc => this would allow to pass the cluster only once instead of twice to avoid loading all clusters ATM 
 * low: doc for handling python dependencies
 
 **DONE**
-
+* high: better support to launch series of experiments, see `notes/list_of_jobs.md`
+medium: report runtime in sp --list_jobs
 * high: show size of zipped archive
 * high: support password and passphrase for ssh
 * low: remove logging info ssh

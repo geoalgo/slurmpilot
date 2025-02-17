@@ -22,7 +22,7 @@ def test_schedule_job():
         generate_local_script(src_dir=Path(src_dir), entrypoint=entrypoint)
         config = Config(
             general_config=GeneralConfig(
-                local_path=local_slurmpilot_path, remote_path=None
+                local_path=local_slurmpilot_path, remote_path=local_slurmpilot_path
             ),
         )
         slurm = SlurmWrapper(

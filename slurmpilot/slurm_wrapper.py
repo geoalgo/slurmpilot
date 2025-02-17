@@ -6,11 +6,13 @@ import shutil
 import time
 import traceback
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import List
 
 import pandas as pd
+from pandas._libs.tslibs.parsing import DateParseError
 
 from slurmpilot.callback import SlurmSchedulerCallback, format_highlight
 from slurmpilot.config import Config, load_config
@@ -22,6 +24,8 @@ from slurmpilot.remote_command import (
     RemoteCommandExecutionSubprocess,
 )
 from slurmpilot.slurm_job_status import SlurmJobStatus
+from slurmpilot.slurm_main_script import generate_main_slurm_script
+from slurmpilot.util import catchtime, parse_nseconds_slurm_status
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -260,7 +264,7 @@ class SlurmWrapper:
             )
         if res.failed:
             raise ValueError(
-                f"Could not submit job, got the following error:\n{res.stderr}"
+                f"Could not submit job, got the following error:\n{res.stderr}\n{res.stdout}"
             )
         else:
             # should be something like 'Submitted batch job 11301013'
@@ -315,42 +319,29 @@ class SlurmWrapper:
                     src=python_library,
                     dst=local_job_paths.resolve_path(Path(python_library).name),
                 )
-        self._generate_main_slurm_script(local_job_paths, job_info)
+        is_job_array = isinstance(job_info.python_args, list)
+        if is_job_array:
+            # For a job array, we write down the list of arguments in a file that is then read
+            # in the entrypoint script and the $SLURM_ARRAY_TASK_ID-th argument is evaluated for each task.
+            with open(local_job_paths.job_path() / "python-args.txt", "w") as f:
+                for x in job_info.python_args:
+                    if isinstance(x, dict):
+                        x = " ".join(f"--{k}={v}" for k, v in x.items())
+                    f.write(x + "\n")
+        with open(local_job_paths.slurm_entrypoint_path(), "w") as f:
+            remote_path = JobPathLogic.from_jobname(
+                jobname=job_info.jobname,
+                root_path=self.config.remote_slurmpilot_path(job_info.cluster),
+            )
+            slurm_script = generate_main_slurm_script(
+                job_info=job_info,
+                entrypoint_path_from_cwd=local_job_paths.entrypoint_path_from_cwd(),
+                remote_jobpath=remote_path.resolve_path(),
+            )
+            f.write(slurm_script)
+
         self._generate_metadata(local_job_paths, job_info)
         return local_job_paths
-
-    def _generate_main_slurm_script(
-        self, local_job_paths: JobPathLogic, job_info: JobCreationInfo
-    ):
-        with open(local_job_paths.slurm_entrypoint_path(), "w") as f:
-            f.write("#!/bin/bash\n")
-            f.write(job_info.sbatch_preamble())
-            # Add path containing the library to the PYTHONPATH so that they can be imported without requiring
-            # the user to add `PYTHONPATH=.` before running scripts, e.g. instead of having to do
-            # `PYTHONPATH=. python main.py`, users can simply do `python main.py`
-            if job_info.bash_setup_command:
-                f.write(job_info.bash_setup_command + "\n")
-
-            # add library to PYTHONPATH
-            libraries = [str(local_job_paths.resolve_path())]
-            if job_info.python_paths is not None:
-                libraries += job_info.python_paths
-            if job_info.python_libraries:
-                libraries += job_info.python_libraries
-            f.write(f'export PYTHONPATH=$PYTHONPATH:{":".join(libraries)}\n')
-            if job_info.python_binary is None:
-                f.write(f"bash {local_job_paths.entrypoint_path_from_cwd()}\n")
-            else:
-                python_args = (
-                    job_info.python_args if job_info.python_args is not None else ""
-                )
-                if isinstance(python_args, dict):
-                    python_args = " ".join(
-                        f"--{key}={value}" for key, value in python_args.items()
-                    )
-                f.write(
-                    f"{job_info.python_binary} {local_job_paths.entrypoint_path_from_cwd()} {python_args}\n"
-                )
 
     def _save_jobid(self, local_job_paths: JobPathLogic, jobid: int):
         metadata = {
@@ -364,16 +355,20 @@ class SlurmWrapper:
             cluster = self.cluster(jobname)
         local_path = JobPathLogic(jobname=jobname)
         self._download_logs(local_path, cluster=cluster, jobname=jobname)
-        if local_path.stderr_path().exists():
-            with open(local_path.stderr_path()) as f:
-                stderr = "".join(f.readlines())
-        else:
-            stderr = None
-        if local_path.stdout_path().exists():
-            with open(local_path.stdout_path()) as f:
-                stdout = "".join(f.readlines())
-        else:
-            stdout = None
+        stderrs = []
+        for filename in local_path.log_path().glob("*stderr"):
+            with open(str(filename), "r") as f:
+                stderrs.append("".join(f.readlines()))
+        stdouts = []
+        for filename in local_path.log_path().glob("*stdout"):
+            with open(str(filename), "r") as f:
+                stdouts.append("".join(f.readlines()))
+        if len(stderrs) > 1 or len(stdouts) > 1:
+            print(
+                "Found several logs, assuming a jobarray was ran and returning only the last log."
+            )
+        stdout = stdouts[-1]
+        stderr = stderrs[-1]
         return stdout, stderr
 
     def print_log(self, jobname: str | None = None):
@@ -402,7 +397,7 @@ class SlurmWrapper:
         if config is None:
             config = load_config()
         metadatas = list_metadatas(
-            root=config.local_slurmpilot_path() / "jobs", n_jobs=-1
+            root=config.local_slurmpilot_path() / "jobs", n_jobs=1
         )
         if len(metadatas) > 0:
             return metadatas[0]
@@ -421,66 +416,105 @@ class SlurmWrapper:
         return list_metadatas(root=root, n_jobs=n_jobs)
 
     def status(self, jobnames: list[str]) -> list[str | None]:
+        # TODO handle case of status missing
+        jobinfos = self.job_infos(jobnames)
+        return [jobinfo.State for jobinfo in jobinfos]
+
+    @dataclass
+    class SlurmJobInfo:
+        jobname: str
+        cluster: str
+        JobID: str
+        task_id: int | None  # for job-array
+        Elapsed: str
+        creation: str
+        Start: datetime
+        State: str
+        NodeList: str
+
+    def job_infos(self, jobnames: list[str]) -> list["SlurmJobInfo"]:
         if not isinstance(jobnames, list):
             assert isinstance(jobnames, str)
             jobnames = [jobnames]
-        jobnames_statuses = {}
+
         jobid_mapping = {}
         clusters = defaultdict(list)
-        # first, we build a dictionary mapping clusters to job informations
+
+        # first, we build a dictionary mapping clusters to job information
         for jobname in jobnames:
             # TODO support having this one missing (
             jobid = self.jobid_from_jobname(jobname)
             jobid_mapping[jobid] = jobname
             job_metadata = self.job_creation_metadata(jobname)
-            cluster = job_metadata.cluster
-            clusters[cluster].append((jobid, job_metadata))
+            if job_metadata is not None:
+                cluster = job_metadata.cluster
+                if jobid is not None:
+                    clusters[cluster].append((jobid, job_metadata))
 
-        # second we call sacct on each clusters with the corresponding jobs
+        rows = []
+        # second, we call sacct on each clusters with the corresponding jobs
         for cluster in clusters.keys():
-            try:
-                job_clusters = clusters[cluster]
-                # filter jobs with missing jobid
-                query_jobids = [
-                    str(jobid)
-                    for (jobid, job_metadata) in job_clusters
-                    if jobid is not None
-                ]
-                sacct_format = "JobID,Elapsed,start,State"
+            job_clusters = clusters[cluster]
+            # filter jobs with missing jobid
+            job_and_ids = [
+                (job_metadata, jobid)
+                for (jobid, job_metadata) in job_clusters
+                if jobid is not None
+            ]
+            rows += self._jobinfo_cluster(cluster=cluster, job_and_ids=job_and_ids)
+        return list(sorted(rows, key=lambda x: x.creation, reverse=True))
 
-                # call sacct...
-                if cluster not in self.connections:
-                    print(
-                        f"Cluster {cluster} not found in your configuration, you probably delete or change a cluster"
-                        f"configuration since the job creation."
-                    )
-                    for jobid, job_metadata in job_clusters:
-                        jobnames_statuses[jobid] = "missing"
-                    continue
-                res = self.connections[cluster].run(
-                    f'sacct --format="{sacct_format}" -X -p --jobs={",".join(query_jobids)}'
-                )
-                # ...and parse output
-                lines = res.stdout.split("\n")
-                keys = lines[0].split("|")[:-1]
-                for line in lines[1:]:
-                    if line:
+    def _jobinfo_cluster(
+        self, cluster: str, job_and_ids: list[JobMetadata, int]
+    ) -> list[SlurmJobInfo]:
+        # calls sacct on the requested jobids for a given cluster
+        jobinfos, jobids = zip(*job_and_ids)
+        jobid_mapping = {jobid: job for job, jobid in job_and_ids}
+        sacct_format = "JobID,Elapsed,start,State,nodelist"
+        job_ids = ",".join([str(x) for x in jobids])
+        try:
+            cmd_res = self.connections[cluster].run(
+                f'sacct --format="{sacct_format}" -X -p --jobs={job_ids}'
+            )
+        except (KeyError, ValueError) as e:
+            return []
+        sacct_string = cmd_res.stdout
+
+        # parse sacct_string
+        lines = sacct_string.split("\n")
+        keys = lines[0].split("|")[:-1]
+        rows = []
+        for line in lines[1:]:
+            if len(line) > 0:
+                kwargs = dict(zip(keys, line.split("|")))
+                if "JobID" in kwargs:
+                    slurm_jobid = kwargs.get("JobID")
+                    if "_" in slurm_jobid:
+                        parent_jobid, task_id = kwargs.get("JobID").split("_")
                         try:
-                            status_dict = dict(zip(keys, line.split("|")[:-1]))
-                            # TODO elapsed time is probably useful too
-                            jobnames_statuses[
-                                jobid_mapping[int(status_dict["JobID"])]
-                            ] = status_dict.get("State", "missing")
-                        except Exception as e:
-                            print(line, str(e))
-                            continue
-            # TODO abstract it
-            except Exception as e:
-                logging.warning(
-                    f"Could not connect to cluster {cluster}, make sure your ssh connection works."
-                )
-                continue
-        return [jobnames_statuses.get(jobname) for jobname in jobnames]
+                            task_id = int(task_id)
+                        except ValueError:
+                            task_id = None
+                    else:
+                        parent_jobid = kwargs.get("JobID")
+                        task_id = None
+                    jobinfo = jobid_mapping.get(int(parent_jobid))
+                    try:
+                        kwargs["Start"] = pd.to_datetime(kwargs["Start"]).strftime(
+                            "%d/%m/%y-%H:%M"
+                        )
+                    except DateParseError:
+                        kwargs["Start"] = None
+                    rows.append(
+                        self.SlurmJobInfo(
+                            jobname=jobinfo.jobname,
+                            task_id=task_id,
+                            cluster=cluster,
+                            creation=jobinfo.date,
+                            **kwargs,
+                        )
+                    )
+        return rows
 
     def print_jobs(
         self, n_jobs: int = 10, max_colwidth: int = 50, status_verbose: bool = True
@@ -488,8 +522,9 @@ class SlurmWrapper:
         rows = []
         jobs = self.list_metadatas(n_jobs)
         print("Calling remote sacct on remote nodes to get status.")
-        statuses = self.status(jobnames=[job.jobname for job in jobs])
-        for job, status in zip(jobs, statuses):
+        jobinfos = self.job_infos(jobnames=[job.jobname for job in jobs])
+        for jobinfo in jobinfos:
+            status = jobinfo.State
             # TODO status when missing jobid.json => error at launching
             if status is None:
                 status_symbol = "Unknown slurm status 🏝"
@@ -508,20 +543,27 @@ class SlurmWrapper:
                     status_symbol = status_mapping.get(
                         status, f"Unknown state: {status}"
                     )
-
+            n_seconds = parse_nseconds_slurm_status(jobinfo.Elapsed)
+            task_id = "" if jobinfo.task_id is None else f" ({jobinfo.task_id})"
+            # right now, results are provided sorted by creation date and then invert taskid
+            # TODO we should support not listing all tasks of a job-array
             rows.append(
                 {
-                    "job": Path(job.jobname).name,
-                    "date": pd.to_datetime(job.date).strftime("%d/%m/%y-%H:%M"),
-                    "cluster": job.job_creation_info.cluster,
+                    "job": Path(jobinfo.jobname).name + task_id,
+                    "cluster": jobinfo.cluster,
+                    "creation": jobinfo.creation,
+                    "min": f"{n_seconds / 60.:.1f}",
                     "status": (
                         f"{status_symbol} "
                         if status_verbose
                         else f"{status_symbol[-1:]} "
                     ),
-                    "full jobname": job.jobname,
+                    "NodeList": jobinfo.NodeList,
+                    # "full jobname": jobinfo.jobname,
                 }
             )
+        if n_jobs is not None:
+            rows = rows[:n_jobs]
         df = pd.DataFrame(rows)
         print(
             df.to_string(
@@ -548,17 +590,14 @@ class SlurmWrapper:
         # 1) download log from remote file
         # 2) show in console
         # we could also consider streaming
-        print(
-            f"Downloading logs into {format_highlight(local_path.stderr_path().parent)}"
-        )
+        print(f"Downloading logs into {format_highlight(local_path.log_path())}")
         remote_path = JobPathLogic.from_jobname(
             jobname=jobname,
             root_path=self.config.remote_slurmpilot_path(cluster),
         )
         try:
             self.connections[cluster].download_folder(
-                remote_path.log_path(),
-                local_path.log_path(),
+                remote_path.log_path(), local_path.log_path()
             )
         except FileNotFoundError:
             return ""
@@ -582,7 +621,7 @@ class SlurmWrapper:
             return None
 
     @staticmethod
-    def job_creation_metadata(jobname: str) -> JobMetadata:
+    def job_creation_metadata(jobname: str) -> JobMetadata | None:
         local_path = JobPathLogic(jobname=jobname)
         with open(local_path.metadata_path(), "r") as f:
             return JobMetadata.from_json(f.read())

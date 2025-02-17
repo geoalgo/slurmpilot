@@ -15,6 +15,8 @@ cloud usage.
 
 **Important note:** Right now, the library is very much work in progress and the API has not been frozen yet. If you use it, please consider providing your feedback!  
 
+See this [link](notes/features.md)  for a table of features supported.
+
 **What about other tools?**
 
 If you are familiar with tools, you may know the great [Skypilot](https://github.com/skypilot-org/skypilot) which allows

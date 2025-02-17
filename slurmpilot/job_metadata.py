@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 from slurmpilot.job_creation_info import JobCreationInfo
+from slurmpilot.jobpath import JobPathLogic
 
 
 @dataclasses.dataclass
@@ -77,7 +78,11 @@ def list_metadatas(root: Path, n_jobs: int | None = None) -> list[JobMetadata]:
     for file in files:
         with open(file, "r") as f:
             try:
-                jobs.append(JobMetadata.from_json(f.read()))
-            except (json.decoder.JSONDecodeError, TypeError) as _:
+                jobmetadata = JobMetadata.from_json(f.read())
+                # if job has been moved, then the path would not be consistent, only picks files which have not moved
+                local_path = JobPathLogic(jobname=jobmetadata.jobname)
+                if local_path.metadata_path().exists():
+                    jobs.append(jobmetadata)
+            except (json.decoder.JSONDecodeError, TypeError):
                 pass
     return jobs

@@ -179,7 +179,7 @@ class RemoteCommandExecutionSubprocess(RemoteExecution):
         res = self._run_shell_command(command=command)
         if res.failed:
             raise ValueError(
-                f"Failed to upload {local_path} to {self.master}: {res.stderr}"
+                f"Failed to upload {local_path} to {self.master}. Tried running:\n{command}\nBut got:{res.stdout} {res.stderr}"
             )
 
     def download_file(self, remote_path: Path, local_path: Path):
