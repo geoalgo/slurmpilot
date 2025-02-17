@@ -175,11 +175,17 @@ class RemoteCommandExecutionSubprocess(RemoteExecution):
             f"Running rsync from {format_highlight(str(local_path))} to {format_highlight(str(remote_path))}"
         )
         user_prefix = f"{self.user}@" if self.user else ""
+        # creates directory as rsync causes an error otherwise, passing --mkpath to rsync would be a cleaner option
+        # but this is only supported in recent version of rsync
+        self._run_shell_command(
+            command=f"ssh {user_prefix}{self.master} mkdir -p {remote_path}"
+        )
+        # runs rsync
         command = f"rsync -aPvz {local_path} {user_prefix}{self.master}:{remote_path}"
         res = self._run_shell_command(command=command)
         if res.failed:
-            raise ValueError(
-                f"Failed to upload {local_path} to {self.master}. Tried running:\n{command}\nBut got:{res.stdout} {res.stderr}"
+            logger.warning(
+                f"The rsync command did not succeed when copying {local_path} to {self.master}. Tried running:\n{command}\nBut got:{res.stdout} {res.stderr}"
             )
 
     def download_file(self, remote_path: Path, local_path: Path):
