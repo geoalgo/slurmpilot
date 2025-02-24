@@ -38,6 +38,12 @@ class JobMetadata:
             **dict_from_string,
         )
 
+    @classmethod
+    def from_jobname(cls, jobname: str) -> "JobMetadata":
+        local_path = JobPathLogic(jobname=jobname)
+        with open(local_path.metadata_path(), "r") as f:
+            return JobMetadata.from_json(f.read())
+
 
 def list_metadatas_files(root: Path):
     # we write a custom code to get all the metadata.json recursively under root

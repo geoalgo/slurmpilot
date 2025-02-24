@@ -172,7 +172,7 @@ class SlurmWrapper:
             return None
 
     def stop_job(self, jobname: str):
-        metadata = self.job_creation_metadata(jobname)
+        metadata = JobMetadata.from_jobname(jobname)
         jobid = self.jobid_from_jobname(jobname)
         self.connections[metadata.cluster].run(f"scancel {jobid}")
 
@@ -408,7 +408,7 @@ class SlurmWrapper:
         :param jobname:
         :return: retrieves the cluster where `jobname` was launched by querying local files
         """
-        job_metadata = self.job_creation_metadata(jobname=jobname)
+        job_metadata = JobMetadata.from_jobname(jobname=jobname)
         return job_metadata.cluster
 
     def list_metadatas(self, n_jobs: int):
@@ -437,22 +437,21 @@ class SlurmWrapper:
             assert isinstance(jobnames, str)
             jobnames = [jobnames]
 
+        # first, we build a dictionary mapping clusters to job information
         jobid_mapping = {}
         clusters = defaultdict(list)
-
-        # first, we build a dictionary mapping clusters to job information
         for jobname in jobnames:
             # TODO support having this one missing (
             jobid = self.jobid_from_jobname(jobname)
             jobid_mapping[jobid] = jobname
-            job_metadata = self.job_creation_metadata(jobname)
+            job_metadata = JobMetadata.from_jobname(jobname)
             if job_metadata is not None:
                 cluster = job_metadata.cluster
                 if jobid is not None:
                     clusters[cluster].append((jobid, job_metadata))
 
-        rows = []
         # second, we call sacct on each clusters with the corresponding jobs
+        rows = []
         for cluster in clusters.keys():
             job_clusters = clusters[cluster]
             # filter jobs with missing jobid
@@ -622,9 +621,7 @@ class SlurmWrapper:
 
     @staticmethod
     def job_creation_metadata(jobname: str) -> JobMetadata | None:
-        local_path = JobPathLogic(jobname=jobname)
-        with open(local_path.metadata_path(), "r") as f:
-            return JobMetadata.from_json(f.read())
+        return JobMetadata.from_jobname(jobname)
 
     def _generate_metadata(self, local_path: JobPathLogic, job_info: JobCreationInfo):
         metadata = JobMetadata(

@@ -28,6 +28,7 @@ if __name__ == "__main__":
     jobid = slurm.schedule_job(jobinfo)
 
     slurm.wait_completion(jobname=jobname, max_seconds=max_runtime_minutes * 60)
+
     print(slurm.job_creation_metadata(jobname))
 
     print("--logs:")
