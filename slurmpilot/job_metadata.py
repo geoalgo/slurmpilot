@@ -64,6 +64,15 @@ def list_metadatas(root: Path, n_jobs: int | None = None) -> list[JobMetadata]:
     file is the most recent.
     """
     files = list_metadatas_files(root=root)
+
+    # sort by creation time
+    files = list(
+        sorted(
+            files,
+            key=lambda item: item.stat().st_ctime,
+            reverse=True,
+        )
+    )
     if n_jobs is not None:
         files = files[:n_jobs]
     jobs = []
@@ -76,7 +85,7 @@ def list_metadatas(root: Path, n_jobs: int | None = None) -> list[JobMetadata]:
                 if local_path.metadata_path().exists():
                     jobs.append(jobmetadata)
             except (json.decoder.JSONDecodeError, TypeError):
-                # print(f"Error while reading {file}")
+                print(f"Error while reading {file}")
                 pass
-    # sort by creation time
-    return list(sorted(jobs, key=lambda item: item.date, reverse=True))
+
+    return jobs
