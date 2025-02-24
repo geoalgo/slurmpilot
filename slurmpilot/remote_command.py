@@ -205,6 +205,7 @@ class RemoteCommandExecutionSubprocess(RemoteExecution):
         """
         # Note, we could also tar the whole thing like we do to send, the reason we pick rsync is that often
         # some files will only be present and rsync allows to not copy those based on hashes
+        local_path.mkdir(parents=True, exist_ok=True)
         user_prefix = f"{self.user}@" if self.user else ""
         command = (
             f"rsync -aPvz {user_prefix}{self.master}:{remote_path} {local_path.parent}"
@@ -366,7 +367,5 @@ class RemoteCommandExecutionFabrik(RemoteExecution):
             f"Running rsync from {format_highlight(remote_path)} to {format_highlight(local_path)}"
         )
         user_prefix = f"{self.user}@" if self.user else ""
-        command = (
-            f"rsync -aPvz {user_prefix}{self.master}:{remote_path} {local_path.parent}"
-        )
+        command = f"rsync -aPvz {user_prefix}{self.master}:{remote_path} {local_path}"
         subprocess.run(command.split(" "), check=True)
