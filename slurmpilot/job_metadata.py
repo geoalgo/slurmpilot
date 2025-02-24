@@ -32,7 +32,7 @@ class JobMetadata:
     def from_json(cls, string) -> "JobMetadata":
         dict_from_string = json.loads(string)
         dict_from_string["job_creation_info"] = JobCreationInfo(
-            **dict_from_string["job_creation_info"]
+            **dict_from_string.get("job_creation_info")
         )
         return JobMetadata(
             **dict_from_string,
@@ -64,14 +64,6 @@ def list_metadatas(root: Path, n_jobs: int | None = None) -> list[JobMetadata]:
     file is the most recent.
     """
     files = list_metadatas_files(root=root)
-    # sort by creation time
-    files = list(
-        sorted(
-            files,
-            key=lambda item: item.stat().st_ctime,
-            reverse=True,
-        )
-    )
     if n_jobs is not None:
         files = files[:n_jobs]
     jobs = []
@@ -84,5 +76,7 @@ def list_metadatas(root: Path, n_jobs: int | None = None) -> list[JobMetadata]:
                 if local_path.metadata_path().exists():
                     jobs.append(jobmetadata)
             except (json.decoder.JSONDecodeError, TypeError):
+                # print(f"Error while reading {file}")
                 pass
-    return jobs
+    # sort by creation time
+    return list(sorted(jobs, key=lambda item: item.date, reverse=True))

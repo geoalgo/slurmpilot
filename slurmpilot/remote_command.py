@@ -183,10 +183,11 @@ class RemoteCommandExecutionSubprocess(RemoteExecution):
         # runs rsync
         command = f"rsync -aPvz {local_path} {user_prefix}{self.master}:{remote_path}"
         res = self._run_shell_command(command=command)
-        if res.failed:
-            logger.warning(
-                f"The rsync command did not succeed when copying {local_path} to {self.master}. Tried running:\n{command}\nBut got:{res.stdout} {res.stderr}"
-            )
+        # if res.failed:
+        #     logger.warning(
+        #         f"The rsync command did not succeed when copying {local_path} to {self.master}. "
+        #         f"Tried running:\n{command}\nBut got:{res.stdout} {res.stderr}"
+        #     )
 
     def download_file(self, remote_path: Path, local_path: Path):
         user_str = "" if self.user is None else self.user + "@"
@@ -204,12 +205,12 @@ class RemoteCommandExecutionSubprocess(RemoteExecution):
         """
         # Note, we could also tar the whole thing like we do to send, the reason we pick rsync is that often
         # some files will only be present and rsync allows to not copy those based on hashes
-        logger.info(
-            f"Running rsync from {format_highlight(remote_path)} to {format_highlight(local_path)}"
-        )
         user_prefix = f"{self.user}@" if self.user else ""
         command = (
             f"rsync -aPvz {user_prefix}{self.master}:{remote_path} {local_path.parent}"
+        )
+        logger.info(
+            f"Running rsync from {format_highlight(remote_path)} to {format_highlight(local_path)}.\n{command}"
         )
         self._run_shell_command(command=command)
 
