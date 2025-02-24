@@ -5,8 +5,12 @@ to be executed. Under the hood, slurmpilot writes a file python-args.txt and use
 
 import logging
 
-from slurmpilot import SlurmWrapper, JobCreationInfo, default_cluster_and_partition
-from slurmpilot.util import unify
+from slurmpilot import (
+    SlurmWrapper,
+    JobCreationInfo,
+    default_cluster_and_partition,
+    unify,
+)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

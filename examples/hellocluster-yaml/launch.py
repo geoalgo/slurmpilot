@@ -3,9 +3,12 @@ import argparse
 from omegaconf import OmegaConf
 import logging
 
-from slurmpilot.config import default_cluster_and_partition
-from slurmpilot.slurm_wrapper import SlurmWrapper, JobCreationInfo
-from slurmpilot.util import unify
+from slurmpilot import (
+    default_cluster_and_partition,
+    SlurmWrapper,
+    JobCreationInfo,
+    unify,
+)
 
 
 def load_config(config_path):

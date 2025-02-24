@@ -57,46 +57,21 @@ you can also configure the ssh key to use, whether to keep the ssh connection al
 to get the full list of options.
 
 After adding those information, if you passed `--check-ssh-connection`a ssh connection will be made with the provided
-information to check if the connection can be made.
+information to check if the connection can be made. 
 
-Alternatively, you can specify/edit configuration directly in `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`,
-for instance a configuration could be like this:
-
-```yaml
-# connecting to this host via ssh should work as Slurmpilot relies on ssh
-host: name
-# optional, specify the path where files will be written by slurmpilot on the remote machine, default to ~/slurmpilot
-remote_path: "/home/username2/foo/slurmpilot/"
-# optional, specify a slurm account if needed (passed with --acount to slurm)
-account: "AN_ACCOUNT"
-# optional, allow to avoid the need to specify the partition
-default_partition: "NAME_OF_PARTITION_TO_BE_USED_BY_DEFAULT"
-# optional (default to false), whether you should be prompted to use a login password for ssh
-```
-
-In addition, you can configure `~/slurmpilot/config/general.yaml` with the following:
-
-```yaml
-# default path where slurmpilot job files are generated
-local_path: "~/slurmpilot"
-
-# default path where slurmpilot job files are generated on the remote machine, Note: "~" cannot be used
-remote_path: "slurmpilot/"
-
-# optional, cluster that is being used by default
-default_cluster: "YOUR_CLUSTER"
-```
+You can also directly create/edit the cluster configuration at
+`~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`, see FAQ on editing configurations for more details.
 
 ## Scheduling a job
 
-You are now ready to schedule jobs! Let us have a look at `launch_hellocluster.py`, in particular, you can call the
+You are now ready to schedule jobs. Let us have a look at `launch_hellocluster.py`, in particular, you can call the
 following to schedule a job:
 
 ```python
-config = load_config()
+from slurmpilot import default_cluster_and_partition, SlurmWrapper, JobCreationInfo, unify
 cluster, partition = default_cluster_and_partition()
 jobname = unify("examples/hello-cluster", method="coolname")  # make the jobname unique by appending a coolname
-slurm = SlurmWrapper(config=config, clusters=[cluster])
+slurm = SlurmWrapper(clusters=[cluster])
 max_runtime_minutes = 60
 jobinfo = JobCreationInfo(
     cluster=cluster,
@@ -235,12 +210,33 @@ pre-commit autoupdate
 You can specify global properties by writing `~/slurmpilot/config/general.yaml`
 and edit the following:
 
-```
-# where files are written locally on your machine for job status, logs and artifacts
-local_path: "~/slurmpilot"  
+```yaml
+# default path where slurmpilot job files are generated
+local_path: "~/slurmpilot"
 
 # default path where slurmpilot job files are generated on the remote machine, Note: "~" cannot be used
 remote_path: "slurmpilot/"
+
+# optional, cluster that is being used by default
+default_cluster: "YOUR_CLUSTER"
+```
+
+
+**Cluster configuration(s).**
+
+You can create/edit a cluster configuration directly in `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`,
+for instance a configuration could be like this:
+
+```yaml
+# connecting to this host via ssh should work as Slurmpilot relies on ssh
+host: name
+# optional, specify the path where files will be written by slurmpilot on the remote machine, default to ~/slurmpilot
+remote_path: "/home/username2/foo/slurmpilot/"
+# optional, specify a slurm account if needed (passed with --acount to slurm)
+account: "AN_ACCOUNT"
+# optional, allow to avoid the need to specify the partition
+default_partition: "NAME_OF_PARTITION_TO_BE_USED_BY_DEFAULT"
+# optional (default to false), whether you should be prompted to use a login password for ssh
 ```
 
 **Why do you rely on SSH?**

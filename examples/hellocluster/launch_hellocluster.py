@@ -1,13 +1,17 @@
 import logging
+from slurmpilot import (
+    default_cluster_and_partition,
+    SlurmWrapper,
+    JobCreationInfo,
+    unify,
+)
 
-from slurmpilot.config import default_cluster_and_partition
-from slurmpilot.slurm_wrapper import SlurmWrapper, JobCreationInfo
-from slurmpilot.util import unify
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     cluster, partition = default_cluster_and_partition()
-    jobname = unify("examples/hello-cluster/job", method="coolname")  # make the jobname unique by appending a coolname
+    jobname = unify(
+        "examples/hello-cluster/job", method="coolname"
+    )  # make the jobname unique by appending a coolname
     slurm = SlurmWrapper(clusters=[cluster])
     max_runtime_minutes = 60
     jobinfo = JobCreationInfo(
@@ -25,7 +29,6 @@ if __name__ == '__main__':
 
     slurm.wait_completion(jobname=jobname, max_seconds=max_runtime_minutes * 60)
     print(slurm.job_creation_metadata(jobname))
-    print(slurm.status(jobname))
 
     print("--logs:")
     slurm.print_log(jobname=jobname)
