@@ -1,9 +1,18 @@
+Next version 0.2 :
+* jobarray (done)
+* support local execution on a slurm node
+* rename SlurmWrapper to SlurmPilot, deprecate SlurmWrapper but leave it available until next version
+* option in list-jobs to not list all tasks in job array
+* allow to copy only python files (or as skypilot keep only files .gitignore)
+* CLI revamp, see [cli](cli.md)
+
 **TODOs**
 * high: option in list-jobs to not list all tasks in job array
 * high: support option to list jobs only for a given job-array
 * high: explain examples in readme
 * high: pipeline to publish pypi version
 * high: unify requirements and poetry
+* high: support local execution on a slurm node
 * high/medium: support using env variable for ssh passphrase
 * medium: discuss getting out of your way philosophy of the tool
 * medium: allow to purge local/remote files of a job

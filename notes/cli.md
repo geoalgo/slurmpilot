@@ -36,14 +36,14 @@ Features not implemented are denoted with a *.
 | metadata      | job name  | Prints metadata of a given job       |
 | slurm-script* | job name  | Shows the slurm script a given job   |
 | status        | job name  | Returns status of a given job        |
-| stop          | job name  |                                      |
+| stop          | job name  | Stops the given job                  |
 
 ### Cluster commands
-| Command   | Arguments                              | What                                         |
-|-----------|----------------------------------------|----------------------------------------------|
-| list-jobs | Num jobs, clusters*, expand-job-array* | Prints a table with information for all jobs |
-| test-ssh  | clusters*                              | Test ssh connection                          |
-| stop-all* | clusters                               | Stop all jobs for a given cluster            |
+| Command   | Arguments                             | What                                         |
+|-----------|---------------------------------------|----------------------------------------------|
+| list-jobs | Num jobs, cluster*, expand-job-array* | Prints a table with information for all jobs |
+| test-ssh  | cluster*                              | Test ssh connection                          |
+| stop-all* | cluster                               | Stop all jobs                                |
 
 ### Other commands
 | Command         | Arguments              | What                    |

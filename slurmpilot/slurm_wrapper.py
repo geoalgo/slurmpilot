@@ -5,7 +5,6 @@ import re
 import shutil
 import time
 import traceback
-from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import List
@@ -22,8 +21,6 @@ from slurmpilot.remote_command import (
 from slurmpilot.slurm_job_status import (
     SlurmJobStatus,
     print_jobs,
-    call_and_parse_sacct,
-    SlurmJobInfo,
     job_infos,
 )
 from slurmpilot.slurm_main_script import generate_main_slurm_script
