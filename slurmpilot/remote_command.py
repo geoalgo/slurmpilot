@@ -171,6 +171,7 @@ class RemoteCommandExecutionSubprocess(RemoteExecution):
             )
 
     def upload_folder(self, local_path: Path, remote_path: Path = Path("/")):
+        # TODO do tar and same as fabrik instead...
         logger.info(
             f"Running rsync from {format_highlight(str(local_path))} to {format_highlight(str(remote_path))}"
         )

@@ -62,8 +62,14 @@ def main():
         help="Show status for the specified job",
         action=argparse.BooleanOptionalAction,
     )
+
     parser.add_argument(
         "--list-jobs", help="List n latest jobs", required=False, type=int, default=5
+    )
+    parser.add_argument(
+        "--cluster",
+        help="Cluster to consider, consider all clusters by default.",
+        type=str,
     )
 
     parser.add_argument(
@@ -128,9 +134,8 @@ def main():
             # TODO print a table with ✅❌ symbols
         elif args.list_jobs:
             n_jobs = args.list_jobs
-            SlurmWrapper(check_connection=False, config=config).print_jobs(
-                n_jobs=n_jobs
-            )
+            clusters = [args.cluster] if args.cluster is not None else None
+            SlurmWrapper(clusters=clusters, config=config).print_jobs(n_jobs=n_jobs)
 
 
 if __name__ == "__main__":

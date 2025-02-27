@@ -74,7 +74,6 @@ class SlurmWrapper:
         self.connections = {}
 
         # dictionary from cluster name to home dir
-        self.home_dir = {}
         for cluster, config in self.config.cluster_configs.items():
             if cluster in clusters:
                 if self.ssh_engine == "ssh":
@@ -97,14 +96,17 @@ class SlurmWrapper:
                         self.job_scheduling_callback.on_establishing_connection(
                             cluster=cluster
                         )
-                        home_res = self.connections[cluster].run("echo $HOME")
-                        self.home_dir[cluster] = Path(home_res.stdout.strip("\n"))
+                        self.connections[cluster].run("echo $HOME")
                     # except (gaierror, AuthenticationException) as e:
                     except Exception as e:
-                        traceback.print_exc()
-                        raise ValueError(
-                            f"Cannot connect to cluster {cluster}. Verify your ssh access. Error: {str(e)}"
+                        logger.info(
+                            f"Cannot connect to cluster {cluster}. Verify your ssh access. Error: {str(e)}, removing cluster {cluster}."
                         )
+                        traceback.print_exc()
+                        self.connections.pop(cluster)
+                        # raise ValueError(
+                        #     f"Cannot connect to cluster {cluster}. Verify your ssh access. Error: {str(e)}"
+                        # )
 
     def list_clusters(self, cluster: str | None = None) -> List[str]:
         # return a list consisting of the provided cluster if not None or all the clusters if None
