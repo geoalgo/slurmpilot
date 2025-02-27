@@ -45,7 +45,7 @@ class JobMetadata:
             return JobMetadata.from_json(f.read())
 
 
-def list_metadatas_files(root: Path):
+def search_metadata_recursively(root: Path):
     # we write a custom code to get all the metadata.json recursively under root
     # the code is custom to avoid searching subdir as soon as we find a metadata.json which is wasteful
     res = []
@@ -54,12 +54,35 @@ def list_metadatas_files(root: Path):
         cur = to_be_visited[-1]
         to_be_visited.pop()
         if (cur / "metadata.json").exists():
-            res.append(cur / "metadata.json")
+
+            # read metadata file
+            file = cur / "metadata.json"
+            with open(file, "r") as f:
+                try:
+                    jobmetadata = JobMetadata.from_json(f.read())
+                    # if job has been moved, then the path would not be consistent, only picks files which have not moved
+                    local_path = JobPathLogic(jobname=jobmetadata.jobname)
+                    if local_path.metadata_path().exists():
+                        res.append((file, jobmetadata))
+                except (json.decoder.JSONDecodeError, TypeError):
+                    print(f"Error while reading {file}")
+                    pass
+
         else:
             for child in cur.glob("*"):
                 if child.is_dir():
                     to_be_visited.append(child)
-    return res
+
+    # sort by creation time
+    res = list(
+        sorted(
+            res,
+            key=lambda x: x[0].stat().st_ctime,
+            reverse=True,
+        )
+    )
+
+    return [jobmetadata for path, jobmetadata in res]
 
 
 def list_metadatas(root: Path, n_jobs: int | None = None) -> list[JobMetadata]:
@@ -69,29 +92,9 @@ def list_metadatas(root: Path, n_jobs: int | None = None) -> list[JobMetadata]:
     :return: the list of all job metadata contains recursively under root, files are sorted by edit time, the first
     file is the most recent.
     """
-    files = list_metadatas_files(root=root)
+    jobs = search_metadata_recursively(root=root)
 
-    # sort by creation time
-    files = list(
-        sorted(
-            files,
-            key=lambda item: item.stat().st_ctime,
-            reverse=True,
-        )
-    )
     if n_jobs is not None:
-        files = files[:n_jobs]
-    jobs = []
-    for file in files:
-        with open(file, "r") as f:
-            try:
-                jobmetadata = JobMetadata.from_json(f.read())
-                # if job has been moved, then the path would not be consistent, only picks files which have not moved
-                local_path = JobPathLogic(jobname=jobmetadata.jobname)
-                if local_path.metadata_path().exists():
-                    jobs.append(jobmetadata)
-            except (json.decoder.JSONDecodeError, TypeError):
-                print(f"Error while reading {file}")
-                pass
+        jobs = jobs[:n_jobs]
 
     return jobs
