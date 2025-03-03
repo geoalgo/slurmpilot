@@ -125,7 +125,7 @@ def load_config(user_path: Path | None = None) -> Config:
     general_config = user_config.general_config
     if general_config is None:
         general_config = GeneralConfig(
-            local_path="~/slurmpilot", remote_path="slurmpilot/"
+            local_path="~/slurmpilot"
         )
 
     logger.info(
