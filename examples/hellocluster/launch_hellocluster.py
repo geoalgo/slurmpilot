@@ -30,6 +30,3 @@ if __name__ == "__main__":
     slurm.wait_completion(jobname=jobname, max_seconds=max_runtime_minutes * 60)
 
     print(slurm.job_creation_metadata(jobname))
-
-    print("--logs:")
-    slurm.print_log(jobname=jobname)
