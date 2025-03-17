@@ -31,9 +31,12 @@ class JobMetadata:
     @classmethod
     def from_json(cls, string) -> "JobMetadata":
         dict_from_string = json.loads(string)
-        dict_from_string["job_creation_info"] = JobCreationInfo(
-            **dict_from_string.get("job_creation_info")
-        )
+        kwargs = dict_from_string.get("job_creation_info")
+        job_creation_info_fields = [x.name for x in dataclasses.fields(JobCreationInfo)]
+        # consider only fields that are valid, some fields may become invalid with API renaming
+        # for now only `exp_id` has been removed
+        kwargs = {k: v for k, v in kwargs.items() if k in job_creation_info_fields}
+        dict_from_string["job_creation_info"] = JobCreationInfo(**kwargs)
         return JobMetadata(
             **dict_from_string,
         )
