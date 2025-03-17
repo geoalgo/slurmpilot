@@ -5,7 +5,7 @@ import logging
 
 from slurmpilot import (
     default_cluster_and_partition,
-    SlurmWrapper,
+    SlurmPilot,
     JobCreationInfo,
     unify,
 )
@@ -64,7 +64,7 @@ def main():
     jobname = unify(config.job.get("jobname", "default-job-name"), method)
     max_runtime_minutes = config.get("max_runtime_minutes", 24 * 60)
 
-    slurm = SlurmWrapper(clusters=[cluster])
+    slurm = SlurmPilot(clusters=[cluster])
 
     script_config = config.get("script", {})
     job_config = config.job

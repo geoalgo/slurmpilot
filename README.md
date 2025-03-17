@@ -68,10 +68,10 @@ You are now ready to schedule jobs. Let us have a look at `launch_hellocluster.p
 following to schedule a job:
 
 ```python
-from slurmpilot import default_cluster_and_partition, SlurmWrapper, JobCreationInfo, unify
+from slurmpilot import default_cluster_and_partition, SlurmPilot, JobCreationInfo, unify
 cluster, partition = default_cluster_and_partition()
 jobname = unify("examples/hello-cluster", method="coolname")  # make the jobname unique by appending a coolname
-slurm = SlurmWrapper(clusters=[cluster])
+slurm = SlurmPilot(clusters=[cluster])
 max_runtime_minutes = 60
 jobinfo = JobCreationInfo(
     cluster=cluster,

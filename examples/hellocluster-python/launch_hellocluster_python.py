@@ -1,6 +1,6 @@
 import logging
 
-from slurmpilot import SlurmWrapper, JobCreationInfo, default_cluster_and_partition
+from slurmpilot import SlurmPilot, JobCreationInfo, default_cluster_and_partition
 from slurmpilot.util import unify
 
 if __name__ == "__main__":
@@ -8,7 +8,7 @@ if __name__ == "__main__":
     cluster, partition = default_cluster_and_partition()
     # make the jobname unique by appending a coolname
     jobname = unify("examples/hello-cluster-python/job", method="coolname")
-    slurm = SlurmWrapper(clusters=[cluster])
+    slurm = SlurmPilot(clusters=[cluster])
     jobinfo = JobCreationInfo(
         cluster=cluster,
         partition=partition,

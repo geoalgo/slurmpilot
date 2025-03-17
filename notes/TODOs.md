@@ -1,7 +1,7 @@
 Next version 0.2 :
 * jobarray (done)
+* rename SlurmWrapper to SlurmPilot, deprecate SlurmWrapper but leave it available until next version (done)
 * support local execution on a slurm node
-* rename SlurmWrapper to SlurmPilot, deprecate SlurmWrapper but leave it available until next version
 * option in list-jobs to not list all tasks in job array
 * allow to copy only python files (or as skypilot keep only files .gitignore)
 * CLI revamp, see [cli](cli.md)
@@ -22,7 +22,6 @@ Next version 0.2 :
 * medium: allow to copy only python files (or as skypilot keep only files .gitignore)
 * medium: generates animation of demo in readme.md
 * medium: allow to stop all jobs in CLI
-* medium: rename SlurmWrapper to SlurmPilot
 * medium: rerun/restart job (useful in case of transient error)
 * medium: download in batch
 * medium: chain of jobs
@@ -31,6 +30,7 @@ status etc => this would allow to pass the cluster only once instead of twice to
 * low: doc for handling python dependencies
 
 **DONE**
+* medium: rename SlurmWrapper to SlurmPilot
 * high: better support to launch series of experiments, see `notes/list_of_jobs.md`
 medium: report runtime in sp --list_jobs
 * high: show size of zipped archive

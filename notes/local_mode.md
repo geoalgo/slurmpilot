@@ -3,7 +3,7 @@
 Goal: allow to run Slurmpilot when logged in a node with Slurm access without requiring SSH access from laptop.
 
 ```python
-from slurmpilot import JobCreationInfo, SlurmWrapper
+from slurmpilot import JobCreationInfo, SlurmPilot
 jobinfo = JobCreationInfo(
     python_args=f"--learning_rate 1e-3 --batch_size 32",
     python_libraries=["foo/custom_library"],
@@ -12,7 +12,7 @@ jobinfo = JobCreationInfo(
     cluster="local", 
     partition="h100-partition"
 )
-jobid = SlurmWrapper(clusters=['local']).schedule_job(jobinfo)
+jobid = SlurmPilot(clusters=['local']).schedule_job(jobinfo)
 # copy files locally
 # call sbatch locally
 ```

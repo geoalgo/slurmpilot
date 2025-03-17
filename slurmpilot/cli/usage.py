@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from slurmpilot import SlurmWrapper
+from slurmpilot import SlurmPilot
 from slurmpilot.callback import format_cluster
 
 
@@ -50,8 +50,8 @@ def parse_file(usage_filename: Path) -> pd.DataFrame:
 
 def download_usage_file(download_path: Path, cluster: str):
     # 1) establish connection with remote host
-    slurm_wrapper = SlurmWrapper(clusters=[cluster])
-    connection = slurm_wrapper.connections[cluster]
+    api = SlurmPilot(clusters=[cluster])
+    connection = api.connections[cluster]
 
     # 2) call sacct on remote machine and dump into compressed result file
     date = "2024-01-01"

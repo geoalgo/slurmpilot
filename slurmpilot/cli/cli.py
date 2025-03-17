@@ -3,7 +3,7 @@ import argparse
 from slurmpilot.callback import format_jobname
 from slurmpilot.config import load_config
 from slurmpilot.job_metadata import list_metadatas, JobMetadata
-from slurmpilot.slurm_wrapper import SlurmWrapper
+from slurmpilot import SlurmPilot
 
 
 def jobname_from_cli_args_or_take_latest(config, args):
@@ -27,7 +27,7 @@ def jobname_from_cli_args_or_take_latest(config, args):
             )
             return None
     else:
-        job_metadata = SlurmWrapper.latest_job()
+        job_metadata = SlurmPilot.latest_job()
         print(
             f"No jobs specified, retrieved the latest one: {format_jobname(job_metadata.jobname)}"
         )
@@ -98,7 +98,7 @@ def main():
         if job is None:
             return
 
-        slurm = SlurmWrapper(config=config, clusters=[job.cluster])
+        slurm = SlurmPilot(config=config, clusters=[job.cluster])
         match args:
             case args if args.log:
                 print(
@@ -127,7 +127,7 @@ def main():
                 print(slurm.status(jobnames=[job.jobname])[0])
     else:
         if args.test_ssh_connections:
-            slurm = SlurmWrapper(config=config)
+            slurm = SlurmPilot(config=config)
             print(
                 f"Could load successfully ssh connections from {list(slurm.connections.keys())} clusters."
             )
@@ -135,7 +135,7 @@ def main():
         elif args.list_jobs:
             n_jobs = args.list_jobs
             clusters = [args.cluster] if args.cluster is not None else None
-            SlurmWrapper(clusters=clusters, config=config).print_jobs(n_jobs=n_jobs)
+            SlurmPilot(clusters=clusters, config=config).print_jobs(n_jobs=n_jobs)
 
 
 if __name__ == "__main__":

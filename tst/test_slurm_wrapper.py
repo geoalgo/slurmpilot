@@ -3,7 +3,7 @@ import tempfile
 from pathlib import Path
 
 from slurmpilot.config import GeneralConfig, Config
-from slurmpilot.slurm_wrapper import SlurmWrapper, JobCreationInfo
+from slurmpilot import SlurmPilot, JobCreationInfo
 
 
 def generate_local_script(src_dir: Path, entrypoint: str):
@@ -21,11 +21,9 @@ def test_schedule_job():
         local_slurmpilot_path = tmpdirname
         generate_local_script(src_dir=Path(src_dir), entrypoint=entrypoint)
         config = Config(
-            general_config=GeneralConfig(
-                local_path=local_slurmpilot_path
-            ),
+            general_config=GeneralConfig(local_path=local_slurmpilot_path),
         )
-        slurm = SlurmWrapper(
+        slurm = SlurmPilot(
             clusters=[],
             config=config,
         )

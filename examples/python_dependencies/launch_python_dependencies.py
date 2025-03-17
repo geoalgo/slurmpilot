@@ -5,7 +5,7 @@ Example that shows how to launch a script that requires a library from another f
 
 import logging
 from pathlib import Path
-from slurmpilot import SlurmWrapper, JobCreationInfo, default_cluster_and_partition
+from slurmpilot import SlurmPilot, JobCreationInfo, default_cluster_and_partition
 from slurmpilot.util import unify
 
 if __name__ == "__main__":
@@ -15,7 +15,7 @@ if __name__ == "__main__":
     jobname = unify(
         "examples/custom-library/job", method="coolname"
     )  # make the jobname unique by appending a coolname
-    slurm = SlurmWrapper(clusters=[cluster])
+    slurm = SlurmPilot(clusters=[cluster])
     max_runtime_minutes = 60
     root_dir = Path(__file__).parent
     jobinfo = JobCreationInfo(

@@ -1,4 +1,5 @@
-from slurmpilot.slurm_wrapper import JobMetadata, JobCreationInfo
+from slurmpilot import JobCreationInfo
+from slurmpilot.job_metadata import JobMetadata
 
 
 def test_jobmetadata_save_load():
