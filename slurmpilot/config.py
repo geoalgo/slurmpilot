@@ -124,9 +124,7 @@ def load_config(user_path: Path | None = None) -> Config:
 
     general_config = user_config.general_config
     if general_config is None:
-        general_config = GeneralConfig(
-            local_path="~/slurmpilot"
-        )
+        general_config = GeneralConfig(local_path="~/slurmpilot")
 
     logger.info(
         f'Loaded cluster configurations {", ".join(user_config.cluster_configs.keys())}.'

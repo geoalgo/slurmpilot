@@ -7,10 +7,10 @@ authors = [
     {name = "David Salinas", email = "check@mywebsite.com"},
 ]
 readme = "README.md"
-#repository = "https://github.com/geoalgo/slurmpilot"
 keywords = ["ML ops", "slurm", "experiment management"]
 classifiers = [
     "Topic :: Scientific/Engineering",
+    "Programming Language :: Python :: 3",
 ]
 #packages = [
 #  { include = "slurmpilot" },
@@ -23,11 +23,24 @@ dependencies = [
     "pandas>=2.0"
 ]
 
-[tool.pytest.ini_options]
-pythonpath = ["."]
-
 [dependency-groups]
 dev = [
+    "black>=25.1.0",
+    "pre-commit>=4.1.0",
     "pytest>=8.3.5",
 ]
 
+[project.urls]
+Homepage = "https://github.com/geoalgo/slurmpilot"
+Documentation = "https://github.com/geoalgo/slurmpilot"
+Repository = "https://github.com/geoalgo/slurmpilot.git"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+
+[project.scripts]
+slurmpilot = "slurmpilot.cli.cli:main"
+sp = "slurmpilot.cli.cli:main"
+sp-add-cluster = "slurmpilot.cli.add_cluster:main"
+sp-usage = "slurmpilot.cli.usage:main"
