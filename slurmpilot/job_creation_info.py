@@ -60,10 +60,10 @@ class JobCreationInfo:
                 logging.warning(
                     f"{self.jobname}: Python binary not set but passing `python_args`: {self.python_args}."
                 )
-        if self.python_binary is not None:
-            assert (
-                Path(self.entrypoint).suffix == ".py"
-            ), f"Must provide a python script ending with .py when using `python_binary` but got {self.entrypoint}."
+        # if self.python_binary is not None:
+        #     assert (
+        #         Path(self.entrypoint).suffix == ".py"
+        #     ), f"Must provide a python script ending with .py when using `python_binary` but got {self.entrypoint}."
         if self.src_dir is None:
             self.src_dir = "./"
         if self.n_concurrent_jobs is not None:

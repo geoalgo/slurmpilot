@@ -367,8 +367,8 @@ class SlurmWrapper:
             print(
                 "Found several logs, assuming a jobarray was ran and returning only the last log."
             )
-        stdout = stdouts[-1]
-        stderr = stderrs[-1]
+        stdout = stdouts[-1] if stdouts else "No log yet."
+        stderr = stderrs[-1] if stderrs else "No log yet."
         return stdout, stderr
 
     def print_log(self, jobname: str | None = None):

@@ -184,11 +184,11 @@ class RemoteCommandExecutionSubprocess(RemoteExecution):
         # runs rsync
         command = f"rsync -aPvz {local_path} {user_prefix}{self.master}:{remote_path}"
         res = self._run_shell_command(command=command)
-        # if res.failed:
-        #     logger.warning(
-        #         f"The rsync command did not succeed when copying {local_path} to {self.master}. "
-        #         f"Tried running:\n{command}\nBut got:{res.stdout} {res.stderr}"
-        #     )
+        if res.failed:
+            logger.warning(
+                f"The rsync command did not succeed when copying {local_path} to {self.master}. "
+                f"Tried running:\n{command}\nBut got:{res.stdout} {res.stderr}"
+            )
 
     def download_file(self, remote_path: Path, local_path: Path):
         user_str = "" if self.user is None else self.user + "@"
