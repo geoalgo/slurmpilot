@@ -70,19 +70,17 @@ following to schedule a job:
 ```python
 from slurmpilot import default_cluster_and_partition, SlurmPilot, JobCreationInfo, unify
 cluster, partition = default_cluster_and_partition()
-jobname = unify("examples/hello-cluster", method="coolname")  # make the jobname unique by appending a coolname
+ 
 slurm = SlurmPilot(clusters=[cluster])
-max_runtime_minutes = 60
+
 jobinfo = JobCreationInfo(
     cluster=cluster,
     partition=partition,
-    jobname=jobname,
+    jobname=unify("examples/hello-cluster", method="coolname"),  # gets a unique jobname by appending a coolname
     entrypoint="hellocluster_script.sh",
     src_dir="./",
     n_cpus=1,
-    max_runtime_minutes=max_runtime_minutes,
-    # Shows how to pass an environment variable to the running script
-    env={"API_TOKEN": "DUMMY"},
+    max_runtime_minutes=60,    
 )
 jobid = slurm.schedule_job(jobinfo)
 ```
