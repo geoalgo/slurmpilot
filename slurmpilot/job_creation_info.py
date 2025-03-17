@@ -11,20 +11,20 @@ logging.basicConfig(
 @dataclass
 class JobCreationInfo:
     jobname: str
-    entrypoint: str | None = None
+    entrypoint: str | None = None  # path of the script to execute, relative to src_dir
 
     bash_setup_command: str | None = (
         None  # if specified a bash command that gets executed before the main script
     )
-    src_dir: str | None = None
-    remote_dir: str | None = (
-        None  # directory to write slurmpilot file in remote cluster, default to what is configured in your cluster configuration
+    src_dir: str | None = (
+        None  # directory that should be shipped to slurm, default to current directory
     )
-    exp_id: str | None = None
+
+    # directory to write slurmpilot file in remote cluster, default to what is configured in your cluster configuration
+    remote_dir: str | None = None
 
     sbatch_arguments: str | None = None  # argument to be passed to sbatch
 
-    # python
     python_binary: str | None = None
 
     # Arguments to be passed to python script.
@@ -49,10 +49,10 @@ class JobCreationInfo:
     n_gpus: int = None  # number of gpus per node
     mem: int = None  # memory pool for each core in MB
     max_runtime_minutes: int = 60  # max runtime in minutes
-    account: str = None
-    env: dict = None
+    account: str = None  # account to charge
+    env: dict = None  # environment variable to use in the slurm script
     nodes: int = None  # number of nodes for this job
-    nodelist: str = None
+    nodelist: str = None  # list of nodes to consider
 
     def __post_init__(self):
         if self.python_args:
