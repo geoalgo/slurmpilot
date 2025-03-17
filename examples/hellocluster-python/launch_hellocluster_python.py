@@ -15,7 +15,8 @@ if __name__ == "__main__":
         jobname=jobname,
         entrypoint="main_hello_cluster.py",
         python_args="--argument1 dummy",
-        python_binary="~/miniconda3/bin/python",
+        python_binary="python",
+        bash_setup_command="source ~/.bashrc",  # source environment to get conda environment
         n_cpus=1,
         max_runtime_minutes=60,
         # Shows how to pass an environment variable to the running script
