@@ -1,23 +1,33 @@
-[tool.poetry]
+[project]
 name = "slurmpilot"
-version = "0.1.4.2"
+version = "0.1.5-dev0"
 description = "A tool for launching and tracking Slurm jobs across many clusters in Python."
-license = "MIT"
+license = {file = "LICENSE.md"}
 authors = [
-    "David Salinas <check@mywebsite.com>",
+    {name = "David Salinas", email = "check@mywebsite.com"},
 ]
 readme = "README.md"
-repository = "https://github.com/geoalgo/slurmpilot"
+#repository = "https://github.com/geoalgo/slurmpilot"
 keywords = ["ML ops", "slurm", "experiment management"]
 classifiers = [
     "Topic :: Scientific/Engineering",
 ]
+#packages = [
+#  { include = "slurmpilot" },
+#]
 
-packages = [
-  { include = "slurmpilot" },
+requires-python = ">=3.10"
+
+dependencies = [
+    "pyyaml>=5.0",
+    "pandas>=2.0"
 ]
 
-[tool.poetry.dependencies]
-python = ">= 3.10.0"
-pyyaml = ">= 5.0"
-pandas = ">= 2.0"
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+]
+

@@ -22,7 +22,7 @@ def _python_args_sbatch_string(job_info: JobCreationInfo) -> str | tuple[str, st
             "# checks that at least $SLURM_ARRAY_TASK_ID lines exists in python arguments."
         )
         lines.append(
-            '[ "$(wc -l < python-args.txt)" -lt "$SLURM_ARRAY_TASK_ID" ] && { echo "Error: python-args.txt has fewer lines than \$max_num_line ($max_num_line)."; echo "ERROR"; exit 1; }'
+            '[ "$(wc -l < python-args.txt)" -lt "$SLURM_ARRAY_TASK_ID" ] && { echo "Error: python-args.txt has fewer lines than max_num_line ($max_num_line)."; echo "ERROR"; exit 1; }'
         )
         lines.append("")
         argument = r'`sed -n "$(( $SLURM_ARRAY_TASK_ID + 1 ))p" python-args.txt`'

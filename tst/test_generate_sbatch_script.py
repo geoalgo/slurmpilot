@@ -65,7 +65,7 @@ def test_generate_main_slurm_script_array():
 export PYTHONPATH=$PYTHONPATH:{jobpath}
 
 # checks that at least $SLURM_ARRAY_TASK_ID lines exists in python arguments.
-[ "$(wc -l < python-args.txt)" -lt "$SLURM_ARRAY_TASK_ID" ] && {{ echo "Error: python-args.txt has fewer lines than \$max_num_line ($max_num_line)."; echo "ERROR"; exit 1; }}
+[ "$(wc -l < python-args.txt)" -lt "$SLURM_ARRAY_TASK_ID" ] && {{ echo "Error: python-args.txt has fewer lines than max_num_line ($max_num_line)."; echo "ERROR"; exit 1; }}
 
 {python_binary} {entrypoint_path_from_cwd} `sed -n "$(( $SLURM_ARRAY_TASK_ID + 1 ))p" python-args.txt`
 """
