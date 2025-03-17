@@ -69,8 +69,8 @@ following to schedule a job:
 
 ```python
 from slurmpilot import default_cluster_and_partition, SlurmPilot, JobCreationInfo, unify
-cluster, partition = default_cluster_and_partition()
- 
+
+cluster, partition = default_cluster_and_partition() 
 slurm = SlurmPilot(clusters=[cluster])
 
 jobinfo = JobCreationInfo(
