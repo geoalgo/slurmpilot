@@ -147,7 +147,7 @@ def print_jobs(
         else:
             status_mapping = {
                 SlurmJobStatus.out_of_memory: "OOM 🤯",
-                SlurmJobStatus.failed: "Slurm job failed ❌",
+                SlurmJobStatus.failed: "Job failed ❌",
                 SlurmJobStatus.pending: "Pending ⏳",
                 SlurmJobStatus.running: "️Running 🏃",
                 SlurmJobStatus.completed: "Completed ✅",
