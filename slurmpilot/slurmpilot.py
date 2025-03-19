@@ -357,11 +357,11 @@ class SlurmPilot:
         self._download_logs(local_path, cluster=cluster, jobname=jobname)
         stderrs = []
         for filename in local_path.log_path().glob("*stderr"):
-            with open(str(filename), "r") as f:
+            with open(str(filename), "r", encoding="utf-8", errors="replace") as f:
                 stderrs.append("".join(f.readlines()))
         stdouts = []
         for filename in local_path.log_path().glob("*stdout"):
-            with open(str(filename), "r") as f:
+            with open(str(filename), "r", encoding="utf-8", errors="replace") as f:
                 stdouts.append("".join(f.readlines()))
         if len(stderrs) > 1 or len(stdouts) > 1:
             print(
