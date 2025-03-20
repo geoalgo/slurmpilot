@@ -17,24 +17,6 @@ cloud usage.
 
 See this [link](notes/features.md)  for a table of features supported.
 
-**What about other tools?**
-
-If you are familiar with tools, you may know the great [Skypilot](https://github.com/skypilot-org/skypilot) which allows
-to run experiments seamlessly between different cloud providers.
-The goal of this project is to ultimately provide a similar high-quality user experience for academics who are running
-on slurm and not cloud machines.
-Extending skypilot to support seems hard given the different nature of slurm and cloud (for instance not all slurm
-cluster could run docker) and hence this library was made rather than just contributing to skypilot.
-This library is also influenced by [Sagemaker python API](https://sagemaker.readthedocs.io/en/stable/) and you may find
-some similarities.
-
-On the Slurm world, a similar library is [Submit](https://github.com/facebookincubator/submitit).
-Compared to Submit, we support launching on any cluster from your local machine and also aim
-at having more features for easy experimenting such as sending source files, or CLI job 
-launching and access to logs or job information. We also deliberately avoid serialization and rather send source files
-which can avoid issues such as [import problems](https://github.com/facebookincubator/submitit/blob/main/docs/tips.md)
-requiring to structure your code in a specific way. 
-
 ## Installing
 
 To install, run the following:
@@ -254,3 +236,25 @@ without hassle.
 **Why don't you rely on docker?**
 Docker is a great option and is being used in similar tools built for the cloud such as Skypilot, SageMaker, ...
 However, running docker in Slurm is often not an option due to difficulties to run without root privileges.
+
+**What about other tools?**
+
+If you are familiar with tools, you may know the great [Skypilot](https://github.com/skypilot-org/skypilot) which allows
+to run experiments seamlessly between different cloud providers.
+The goal of this project is to ultimately provide a similar high-quality user experience for academics who are running
+on slurm and not cloud machines.
+Extending skypilot to support seems hard given the different nature of slurm and cloud (for instance not all slurm
+cluster could run docker) and hence this library was made rather than just contributing to skypilot.
+This library is also influenced by [Sagemaker python API](https://sagemaker.readthedocs.io/en/stable/) and you may find
+some similarities.
+
+On the Slurm world, a similar library is [Submit](https://github.com/facebookincubator/submitit).
+Compared to Submit, we support launching on any cluster from your local machine and also aim
+at having more features for easy experimenting such as sending source files, or CLI job 
+launching and access to logs or job information. We also deliberately avoid serialization and rather send source files
+which can avoid issues such as [import problems](https://github.com/facebookincubator/submitit/blob/main/docs/tips.md)
+requiring to structure your code in a specific way. 
+
+One frequent approach taken is to use Slurm batch *templates* where environment variables are dynamically filled
+(see examples from [Picotron](https://github.com/huggingface/picotron/blob/main/template/base_job.slurm) and [LAION](https://github.com/SLAMPAI/autoexperiment/tree/master/examples/full_example)).
+This approach is great and lightweight, but it does not easily allow multi-cluster as SlurmPilot.
