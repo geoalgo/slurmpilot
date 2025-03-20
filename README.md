@@ -237,9 +237,7 @@ without hassle.
 Docker is a great option and is being used in similar tools built for the cloud such as Skypilot, SageMaker, ...
 However, running docker in Slurm is often not an option due to difficulties to run without root privileges.
 
-**What about other tools?**
-
-If you are familiar with tools, you may know the great [Skypilot](https://github.com/skypilot-org/skypilot) which allows
+**What about other tools?** If you are familiar with tools, you may know the great [Skypilot](https://github.com/skypilot-org/skypilot) which allows
 to run experiments seamlessly between different cloud providers.
 The goal of this project is to ultimately provide a similar high-quality user experience for academics who are running
 on slurm and not cloud machines.

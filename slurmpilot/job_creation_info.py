@@ -10,46 +10,52 @@ logging.basicConfig(
 
 @dataclass
 class JobCreationInfo:
+    """
+    Dataclass to describes job creation information.
+    Attributes:
+        jobname (str): The name of the job.
+        entrypoint (str): Path of the script to execute, relative to `src_dir`.
+        cluster (str | None): Cluster to be used, should be a hostname that can be reached with ssh.
+        bash_setup_command (str | None): A bash command that gets executed before the main `entrypoint` script.
+        src_dir (str | None): Directory that is be shipped to slurm, default to current directory. Must contain the entrypoint script.
+        remote_dir (str | None): Directory to write slurmpilot file in remote cluster, default to what is configured in your cluster configuration
+        sbatch_arguments (str | None): Arguments to be passed to sbatch, use it in case an argument you want to use in Slurm is not yet supported, for instance: `--threads-per-core=1`.
+        python_binary (str | None): Path to the binary used to evaluate the entrypoint script, if not passed, use `bash` to evaluate the entrypoint script.
+        python_args (str | dict | list[str] | list[dict] | None): Arguments to be passed to python script. When using `str` or `dict`, arguments are for a single job and when using a dictionary, the arguments are converted to string with `--key=value` for all key and value of the dictionary. When using `list`, then slurmpilot will schedule one job each with a jobarray with a job for each argument.
+        n_concurrent_jobs (int | None): Number of concurrent jobs, can only be used when `python_args` is a list, will generate a line like `#SBATCH --array=0-{n_jobs}%{n_concurrent_jobs}` where `n_jobs` is the length of `python_args`
+        python_paths (list[str] | None): Path existing remotely to be included in PYTHONPATH so that they can be imported in python.
+        python_libraries (list[str] | None): Python libraries existing locally to be sent to the remote and added to the PYTHONPATH
+        partition (str): Partition to use
+        n_cpus (int): Number of cores to use
+        n_gpus (int): Number of GPUs per node to use
+        nodes (int): Number of nodes for this job
+        mem (int): Memory pool for each core in MB
+        max_runtime_minutes (int): Max runtime in minutes
+        account (str | None): Account to charge
+        env (dict): Environment variables to use in the slurm script
+        nodelist (str): List of nodes to consider, useful to exclude faulty nodes
+    """
+
     jobname: str
-    entrypoint: str | None = None  # path of the script to execute, relative to src_dir
-
-    bash_setup_command: str | None = (
-        None  # if specified a bash command that gets executed before the main script
-    )
-    src_dir: str | None = (
-        None  # directory that should be shipped to slurm, default to current directory
-    )
-
-    # directory to write slurmpilot file in remote cluster, default to what is configured in your cluster configuration
+    entrypoint: str
+    cluster: str | None = None
+    bash_setup_command: str | None = None  #
+    src_dir: str | None = None
     remote_dir: str | None = None
-
-    sbatch_arguments: str | None = None  # argument to be passed to sbatch
+    sbatch_arguments: str | None = None
 
     python_binary: str | None = None
-
-    # Arguments to be passed to python script.
-    # When using `str` or `dict`, arguments are for a single job and when using a dictionary, the arguments are
-    # converted to string with `--key=value` for all key and value of the dictionary.
-    # When using `list`, then slurmpilot will schedule one job each with a jobarray with a job for each argument.
     python_args: str | dict | list[str] | list[dict] | None = None
-
-    # number of concurrent jobs, can only be used when `python_args` is a list, will generate a line like
-    # `#SBATCH --array=0-{n_jobs}%{n_concurrent_jobs}` where `n_jobs` is the length of `python_args`
     n_concurrent_jobs: int | None = None
-
-    # path existing remotely to be included in PYTHONPATH so that they can be imported in python
     python_paths: list[str] | None = None
-    # python libraries existing locally to be sent to the remote and added to the PYTHONPATH
     python_libraries: list[str] | None = None
 
-    # ressources
-    cluster: str = None
     partition: str = None
-    n_cpus: int = 1  # number of cores
-    n_gpus: int = None  # number of gpus per node
+    n_cpus: int = 1
+    n_gpus: int = None
     mem: int = None  # memory pool for each core in MB
     max_runtime_minutes: int = 60  # max runtime in minutes
-    account: str = None  # account to charge
+    account: str | None = None  # account to charge
     env: dict = None  # environment variable to use in the slurm script
     nodes: int = None  # number of nodes for this job
     nodelist: str = None  # list of nodes to consider

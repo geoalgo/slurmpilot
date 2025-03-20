@@ -8,7 +8,7 @@ def test_jobmetadata_save_load():
     metadata = JobMetadata(
         user="foo",
         date="2023",
-        job_creation_info=JobCreationInfo(jobname="job1"),
+        job_creation_info=JobCreationInfo(jobname="job1", entrypoint="foo"),
         cluster="big-cluster",
     )
     json_serialized = metadata.to_json()
