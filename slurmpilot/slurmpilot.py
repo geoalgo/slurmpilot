@@ -61,11 +61,6 @@ class SlurmPilot:
             self.config = load_config()
         if clusters is None:
             clusters = list(self.config.cluster_configs.keys())
-        for cluster in clusters:
-            assert cluster in self.config.cluster_configs, (
-                f"config not found for cluster {cluster}, "
-                f"available clusters: {self.config.cluster_configs.keys()}"
-            )
         self.clusters = clusters
         self.job_scheduling_callback = SlurmSchedulerCallback()
 
@@ -73,40 +68,41 @@ class SlurmPilot:
             self.job_scheduling_callback.on_config_loaded(self.config)
         self.connections = {}
 
-        # dictionary from cluster name to home dir
-        for cluster, config in self.config.cluster_configs.items():
-            if cluster in clusters:
-                if self.ssh_engine == "ssh":
-                    self.connections[cluster] = RemoteCommandExecutionSubprocess(
-                        master=config.host,
-                        user=config.user,
-                    )
-                else:
-                    from slurmpilot.remote_command import (
-                        RemoteCommandExecutionFabrik,
-                    )
+        for cluster in clusters:
+            if cluster in self.config.cluster_configs.items():
+                config = self.config.cluster_configs[cluster]
+                connection_kwargs = dict(
+                    master=config.host,
+                    user=config.user,
+                )
+            else:
+                connection_kwargs = dict(master=cluster)
+            if self.ssh_engine == "ssh":
+                self.connections[cluster] = RemoteCommandExecutionSubprocess(
+                    **connection_kwargs
+                )
+            else:
+                from slurmpilot.remote_command import (
+                    RemoteCommandExecutionFabrik,
+                )
 
-                    self.connections[cluster] = RemoteCommandExecutionFabrik(
-                        master=config.host,
-                        user=config.user,
+                self.connections[cluster] = RemoteCommandExecutionFabrik(
+                    **connection_kwargs
+                )
+            if check_connection:
+                try:
+                    logger.debug(f"Try sending command to {cluster}.")
+                    self.job_scheduling_callback.on_establishing_connection(
+                        cluster=cluster
                     )
-                if check_connection:
-                    try:
-                        logger.debug(f"Try sending command to {cluster}.")
-                        self.job_scheduling_callback.on_establishing_connection(
-                            cluster=cluster
-                        )
-                        self.connections[cluster].run("echo $HOME")
-                    # except (gaierror, AuthenticationException) as e:
-                    except Exception as e:
-                        logger.info(
-                            f"Cannot connect to cluster {cluster}. Verify your ssh access. Error: {str(e)}, removing cluster {cluster}."
-                        )
-                        traceback.print_exc()
-                        self.connections.pop(cluster)
-                        # raise ValueError(
-                        #     f"Cannot connect to cluster {cluster}. Verify your ssh access. Error: {str(e)}"
-                        # )
+                    self.connections[cluster].run("echo $HOME")
+                # except (gaierror, AuthenticationException) as e:
+                except Exception as e:
+                    logger.info(
+                        f"Cannot connect to cluster {cluster}. Verify your ssh access. Error: {str(e)}, removing cluster {cluster}."
+                    )
+                    traceback.print_exc()
+                    self.connections.pop(cluster)
 
     def list_clusters(self, cluster: str | None = None) -> List[str]:
         # return a list consisting of the provided cluster if not None or all the clusters if None

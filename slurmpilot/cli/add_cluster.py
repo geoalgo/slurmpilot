@@ -12,6 +12,7 @@ from slurmpilot.remote_command import RemoteCommandExecutionFabrik
 class ClusterConfiguration:
     name: str
     host: str
+    remote_path: str | None = None
     user: str | None = None
     default_partition: str | None = None
     ssh_file: str | None = None
@@ -155,6 +156,12 @@ def main():
         required=False,
     )
     parser.add_argument(
+        "--remote_path",
+        type=str,
+        help="Path on remote machine where SlurmPilot files should we written.",
+        required=False,
+    )
+    parser.add_argument(
         "--check-ssh-connection",
         help="Test ssh connection after configuring host.",
         action=argparse.BooleanOptionalAction,
@@ -172,6 +179,7 @@ def main():
         name=args.cluster,
         host=args.host,
         user=args.user,
+        remote_path=args.remote_path,
         default_partition=args.default_partition,
         ssh_file=args.ssh_file,
         keep_alive_minute=args.keep_alive_minute,

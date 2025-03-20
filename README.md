@@ -38,34 +38,21 @@ requiring to structure your code in a specific way.
 ## Installing
 
 To install, run the following:
+```bash
+pip install slurmpilot
+```
 
+to install the latest version from pypi or this to install the latest commit:
 ```bash
 pip install "slurmpilot[extra] @ git+https://github.com/geoalgo/slurmpilot.git"
 ```
 
-## Adding a cluster
-
-Before you can schedule a job, you will need to provide information about a cluster by specifying a configuration.
-
-You can run the following command:
-
-```bash 
-sp-add-cluster --cluster YOUR_CLUSTER --host YOUR_HOST --user YOUR_USER --check-ssh-connection
-```
-
-you can also configure the ssh key to use, whether to keep the ssh connection alive, see `sp-add-cluster --help`
-to get the full list of options.
-
-After adding those information, if you passed `--check-ssh-connection`a ssh connection will be made with the provided
-information to check if the connection can be made. 
-
-You can also directly create/edit the cluster configuration at
-`~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`, see FAQ on editing configurations for more details.
-
 ## Scheduling a job
 
-You are now ready to schedule jobs. Let us have a look at `launch_hellocluster.py`, in particular, you can call the
-following to schedule a job:
+Let us assume that you have ssh access to a cluster, e.g. that `ssh YOURCLUSTER` works for 
+a cluster `YOURCLUSTER` full of GPU.
+
+You can launch a job as follow (see `launch_hellocluster.py` for a full example):
 
 ```python
 from slurmpilot import SlurmPilot, JobCreationInfo, unify
@@ -86,10 +73,10 @@ jobinfo = JobCreationInfo(
 jobid = slurm.schedule_job(jobinfo)
 ```
 
-Here we created a job in the default cluster and partition. A couple of points:
+Running this script will launch a job to the specified cluster and partition. A couple of points:
 
-* `cluster`: you can use any cluster `YOURCLUSTER` as long as the file `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`
-exists, that the hostname is reachable through ssh and that Slurm is installed on the host. 
+* `cluster`: you can use any cluster `YOURCLUSTER` as long as `ssh YOURCLUSTER` works and that Slurm is installed on 
+the host. you can optionally edit the file `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml` to edit the default path used by SlurmPilot or add a default partition  
 * `jobname` must be unique, we use `unify` which appends a unique suffix to ensure unicity even if the scripts is
   launched multiple times. Nested folders can be used, in this case, files will be written under `~
   /slurmpilot/jobs/examples/hello-cluster/`
@@ -143,7 +130,28 @@ calling your python script (for instance to setup the environment, activate cond
 
 If you pass a **list of arguments**, SlurmPilot will create a job-array with one job per argument.
 
-### CLI
+### Adding a cluster configuration
+
+You can add a configuration for every cluster which can allow to customize the cluster, eg what is the hostname, how the 
+cluster is called, where files are written etc.
+
+You can also directly create/edit the cluster configuration at
+`~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`, see FAQ on editing configurations for more details.
+
+You can also use SlurmPilot to "install" a cluster, e.g. to create a configuration and edit automatically
+your `~/.ssh/config` file to include the cluster.
+
+```bash 
+sp-add-cluster --cluster YOUR_CLUSTER --host YOUR_HOST --remote-path /workspace/markdupont/slurmpilot/ --user YOUR_USER --check-ssh-connection
+```
+
+you can also configure the ssh key to use, whether to keep the ssh connection alive, see `sp-add-cluster --help`
+to get the full list of options.
+
+After adding those information, if you passed `--check-ssh-connection`a ssh connection will be made with the provided
+information to check if the connection can be made. 
+
+## CLI
 
 Slurmpilot provides a CLI which allows to:
 
