@@ -50,6 +50,12 @@ def main():
         action=argparse.BooleanOptionalAction,
     )
     parser.add_argument(
+        "--array-index",
+        help="Show log for the specified job index for a job array, for instance with "
+        "`sp JOBNAME --log --array-index 3` to see the 3rd log of JOBNAME.",
+        type=int,
+    )
+    parser.add_argument(
         "--stop", help="Stop the specified job", action=argparse.BooleanOptionalAction
     )
     parser.add_argument(
@@ -104,7 +110,7 @@ def main():
                 print(
                     slurm.format_string_jobname("Displaying log for job", job.jobname)
                 )
-                slurm.print_log(jobname=job.jobname)
+                slurm.print_log(jobname=job.jobname, index=args.array_index)
             case args if args.download:
                 print(slurm.format_string_jobname("Downloading job", job.jobname))
                 slurm.download_job(jobname=job.jobname)

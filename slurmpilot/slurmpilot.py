@@ -346,17 +346,21 @@ class SlurmPilot:
         with open(local_job_paths.jobid_path(), "w") as f:
             f.write(json.dumps(metadata))
 
-    def log(self, jobname: str, cluster: str | None = None):
+    def log(self, jobname: str, cluster: str | None = None, index: int | None = None):
         if cluster is None:
             cluster = self.cluster(jobname)
         local_path = JobPathLogic(jobname=jobname)
         self._download_logs(local_path, cluster=cluster, jobname=jobname)
         stderrs = []
         for filename in local_path.log_path().glob("*stderr"):
+            if index is not None and filename.name != f"{index}.stderr":
+                continue
             with open(str(filename), "r", encoding="utf-8", errors="replace") as f:
                 stderrs.append("".join(f.readlines()))
         stdouts = []
         for filename in local_path.log_path().glob("*stdout"):
+            if index is not None and filename.name != f"{index}.stdout":
+                continue
             with open(str(filename), "r", encoding="utf-8", errors="replace") as f:
                 stdouts.append("".join(f.readlines()))
         if len(stderrs) > 1 or len(stdouts) > 1:
@@ -367,7 +371,7 @@ class SlurmPilot:
         stderr = stderrs[-1] if stderrs else "No log yet."
         return stdout, stderr
 
-    def print_log(self, jobname: str | None = None):
+    def print_log(self, jobname: str | None = None, index: int | None = None):
         """
         :param jobname: if not specified uses the last job
         :return: print log of specified job
@@ -376,7 +380,7 @@ class SlurmPilot:
             jobname = self.latest_job(self.config).jobname
             print(f"No jobname was passed, showing log of latest job {jobname}")
         cluster = self.cluster(jobname)
-        stderr, stdout = self.log(jobname=jobname, cluster=cluster)
+        stderr, stdout = self.log(jobname=jobname, cluster=cluster, index=index)
         if stderr:
             print(f"stderr:\n{stderr}")
         if stdout:
