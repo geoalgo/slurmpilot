@@ -17,6 +17,7 @@ from slurmpilot.jobpath import JobPathLogic
 from slurmpilot.remote_command import (
     RemoteExecution,
     RemoteCommandExecutionSubprocess,
+    LocalCommandExecution,
 )
 from slurmpilot.slurm_job_status import (
     SlurmJobStatus,
@@ -77,19 +78,20 @@ class SlurmPilot:
                 )
             else:
                 connection_kwargs = dict(master=cluster)
-            if self.ssh_engine == "ssh":
-                self.connections[cluster] = RemoteCommandExecutionSubprocess(
-                    **connection_kwargs
-                )
-            else:
-                from slurmpilot.remote_command import (
-                    RemoteCommandExecutionFabrik,
-                )
+            if cluster == "local":
+                command_execution_class = LocalCommandExecution
+            elif self.ssh_engine == "ssh":
+                command_execution_class = RemoteCommandExecutionSubprocess
+            elif self.ssh_engine == "paramiko":
+                from slurmpilot.remote_command import RemoteCommandExecutionFabrik
 
-                self.connections[cluster] = RemoteCommandExecutionFabrik(
-                    **connection_kwargs
-                )
-            if check_connection:
+                command_execution_class = RemoteCommandExecutionFabrik
+            else:
+                raise ValueError(f"SSH engine invalid: {self.ssh_engine}")
+
+            self.connections[cluster] = command_execution_class(**connection_kwargs)
+
+            if cluster != "local" and check_connection:
                 try:
                     logger.debug(f"Try sending command to {cluster}.")
                     self.job_scheduling_callback.on_establishing_connection(
