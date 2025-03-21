@@ -27,6 +27,7 @@ class SlurmJobStatus:
 @dataclass
 class SlurmJobInfo:
     jobname: str
+    jobid: str
     cluster: str
     JobID: str
     task_id: int | None  # for job-array
@@ -120,6 +121,7 @@ def call_and_parse_sacct(
                     kwargs["Start"] = None
                 rows.append(
                     SlurmJobInfo(
+                        jobid=parent_jobid,
                         jobname=jobinfo.jobname,
                         task_id=task_id,
                         cluster=cluster,
@@ -164,6 +166,7 @@ def print_jobs(
         rows.append(
             {
                 "job": Path(jobinfo.jobname).name + task_id,
+                "jobid": jobinfo.jobid if task_id else jobinfo.jobid + "_" + task_id,
                 "cluster": jobinfo.cluster,
                 "creation": jobinfo.creation,
                 "min": f"{n_seconds / 60.:.1f}",
