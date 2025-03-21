@@ -6,7 +6,7 @@ from slurmpilot.util import unify
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     # cluster, partition = default_cluster_and_partition()
-    cluster = "kislurm"
+    cluster = "local"
     partition = "ml_gpu-rtx2080"
     # make the jobname unique by appending a coolname
     jobname = unify("examples/hello-cluster-python/job", method="coolname")
