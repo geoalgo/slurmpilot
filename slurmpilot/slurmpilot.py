@@ -18,6 +18,7 @@ from slurmpilot.remote_command import (
     RemoteExecution,
     RemoteCommandExecutionSubprocess,
     LocalCommandExecution,
+    LocalCommandExecutionSubprocess,
 )
 from slurmpilot.slurm_job_status import (
     SlurmJobStatus,
@@ -79,7 +80,7 @@ class SlurmPilot:
             else:
                 connection_kwargs = dict(master=cluster)
             if cluster == "local":
-                command_execution_class = LocalCommandExecution
+                command_execution_class = LocalCommandExecutionSubprocess
             elif self.ssh_engine == "ssh":
                 command_execution_class = RemoteCommandExecutionSubprocess
             elif self.ssh_engine == "paramiko":
