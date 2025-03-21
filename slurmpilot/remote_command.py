@@ -1,4 +1,5 @@
 import logging
+import os
 import socket
 import subprocess
 import tempfile
@@ -95,6 +96,97 @@ class LocalCommandExecution(RemoteExecution):
         raise NotImplementedError()
 
 
+class LocalCommandExecutionSubprocess(RemoteExecution):
+    def __init__(
+        self,
+        local_dir: str | Path = None,
+    ):
+        """
+        Calls native unix ssh and scp with subprocesses. Should work reliably as long as ssh and scp works in a terminal
+        :param master: hostname of the remote host which should have slurm available
+        :param user:
+        :param proxy:
+        :param local_dir: where logs are written of intermediate commands, if None, use tempdir
+        """
+        super().__init__(master="", proxy="", user=os.getenv("USER"))
+        self.local_dir = local_dir if local_dir else tempfile.mkdtemp()
+        self.local_dir = Path(self.local_dir)
+
+    def run(
+        self, command: str, pty: bool = False, env: dict | None = None, retries: int = 0
+    ) -> CommandResult:
+        return self._run_shell_command(
+            command=command, pty=pty, env=env, retries=retries
+        )
+
+    def _run_shell_command(
+        self, command: str, pty: bool = False, env: dict | None = None, retries: int = 0
+    ) -> CommandResult:
+        # TODO specify dir
+        with open(self.local_dir / "std.out", "w") as stdout:
+            with open(self.local_dir / "std.err", "w") as stderr:
+                process = subprocess.Popen(
+                    command.split(" "), stderr=stderr, stdout=stdout
+                )
+
+        # wait for ssh to be finished, return code is 100 in case of timeout
+        code = 100
+        for _ in range(20):
+            code = process.poll()
+            if code is not None:
+                break
+            time.sleep(1)
+
+        with open(self.local_dir / "std.out", "r") as f:
+            stdout = f.read()
+        with open(self.local_dir / "std.err", "r") as f:
+            stderr = f.read()
+
+        return CommandResult(
+            command=command,
+            failed=code != 0,
+            stderr=stderr,
+            stdout=stdout,
+            return_code=code,
+        )
+
+    def upload_file(self, local_path: Path, remote_path: Path = Path("/")):
+        if local_path == remote_path:
+            # nothing to do
+            return
+        else:
+            import shutil
+
+            shutil.copyfile(local_path, remote_path)
+
+    def upload_folder(self, local_path: Path, remote_path: Path = Path("/")):
+        if local_path == remote_path:
+            # nothing to do
+            return
+        else:
+            import shutil
+
+            shutil.copytree(local_path, remote_path)
+
+    def download_file(self, remote_path: Path, local_path: Path):
+        if local_path == remote_path:
+            # nothing to do
+            return
+        else:
+            import shutil
+
+            shutil.copyfile(remote_path, local_path)
+
+    def download_folder(self, remote_path: Path, local_path: Path):
+        if local_path == remote_path:
+            # nothing to do
+            return
+        else:
+            import shutil
+
+            shutil.copytree(remote_path, local_path)
+
+
 class RemoteCommandExecutionSubprocess(RemoteExecution):
     def __init__(
         self,
@@ -172,6 +264,7 @@ class RemoteCommandExecutionSubprocess(RemoteExecution):
 
     def upload_folder(self, local_path: Path, remote_path: Path = Path("/")):
         # TODO do tar and same as fabrik instead...
+        assert local_path.is_dir()
         logger.info(
             f"Running rsync from {format_highlight(str(local_path))} to {format_highlight(str(remote_path))}"
         )

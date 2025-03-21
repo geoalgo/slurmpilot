@@ -1,9 +1,11 @@
 import argparse
+from pathlib import Path
 
 from slurmpilot.callback import format_jobname
 from slurmpilot.config import load_config
 from slurmpilot.job_metadata import list_metadatas, JobMetadata
 from slurmpilot import SlurmPilot
+from slurmpilot.jobpath import JobPathLogic
 
 
 def jobname_from_cli_args_or_take_latest(config, args):
@@ -79,6 +81,11 @@ def main():
     )
 
     parser.add_argument(
+        "--command",
+        help="Run a command on the specified job, for instance `sp JOBNAME --command ls",
+        type=str,
+    )
+    parser.add_argument(
         "--test-ssh-connections",
         help="Test ssh connections",
         action=argparse.BooleanOptionalAction,
@@ -86,7 +93,7 @@ def main():
 
     args = parser.parse_args()
     is_command_requiring_jobname = any(
-        [args.log, args.download, args.status, args.stop]
+        [args.log, args.download, args.status, args.stop, args.command]
     )
     if (
         not is_command_requiring_jobname
@@ -124,6 +131,28 @@ def main():
             case args if args.stop:
                 print(slurm.format_string_jobname("Stopping job", job.jobname))
                 slurm.stop_job(jobname=job.jobname)
+            case args if args.command:
+                # retrieving the jobpath on the remote node, TODO code is too complex for this
+                metadata = JobMetadata.from_jobname(job.jobname)
+                job_info = metadata.job_creation_info
+                if job_info.remote_dir is None:
+                    root_path = slurm.config.remote_slurmpilot_path(job_info.cluster)
+                else:
+                    root_path = job_info.remote_dir
+                job_path = JobPathLogic(
+                    jobname=job_info.jobname,
+                    entrypoint=job_info.entrypoint,
+                    src_dir_name=Path(job_info.src_dir).resolve().name,
+                    root_path=root_path,
+                ).job_path()
+                res = slurm.connections[metadata.cluster].run(
+                    f"cd {job_path}; {args.command}"
+                )
+                if res.stdout:
+                    print(f'stdout for command "{args.command}":\n' + res.stdout)
+                if res.stderr:
+                    print(f'stdout for command "{args.command}":\n' + res.stderr)
+
             case _:
                 print(
                     slurm.format_string_jobname(
