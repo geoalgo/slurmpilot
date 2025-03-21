@@ -256,3 +256,18 @@ requiring to structure your code in a specific way.
 One frequent approach taken is to use Slurm batch *templates* where environment variables are dynamically filled
 (see examples from [Picotron](https://github.com/huggingface/picotron/blob/main/template/base_job.slurm) and [LAION](https://github.com/SLAMPAI/autoexperiment/tree/master/examples/full_example)).
 This approach is great and lightweight, but it does not easily allow multi-cluster as SlurmPilot.
+
+
+**What are the dependencies?**
+Current dependencies are pandas and pyyaml to read configs, here is the dependency tree.
+We intend to keep dependency to a minimum.
+```
+slurmpilot v0.1.5.dev0
+├── pandas v2.2.3
+│   ├── numpy v2.2.4
+│   ├── python-dateutil v2.9.0.post0
+│   │   └── six v1.17.0
+│   ├── pytz v2025.1
+│   └── tzdata v2025.1
+├── pyyaml v6.0.2
+```
