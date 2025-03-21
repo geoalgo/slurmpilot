@@ -60,6 +60,9 @@ class RemoteExecution:
 class LocalCommandExecutionSubprocess(RemoteExecution):
     def __init__(
         self,
+        master: str,
+        user: str | None = None,
+        proxy: str | None = None,
         local_dir: str | Path = None,
     ):
         """
@@ -69,7 +72,7 @@ class LocalCommandExecutionSubprocess(RemoteExecution):
         :param proxy:
         :param local_dir: where logs are written of intermediate commands, if None, use tempdir
         """
-        super().__init__(master="", proxy="", user=os.getenv("USER"))
+        super().__init__(master=master, proxy=proxy, user=user)
         self.local_dir = local_dir if local_dir else tempfile.mkdtemp()
         self.local_dir = Path(self.local_dir)
 
