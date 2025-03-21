@@ -17,7 +17,6 @@ from slurmpilot.jobpath import JobPathLogic
 from slurmpilot.remote_command import (
     RemoteExecution,
     RemoteCommandExecutionSubprocess,
-    LocalCommandExecution,
     LocalCommandExecutionSubprocess,
 )
 from slurmpilot.slurm_job_status import (
