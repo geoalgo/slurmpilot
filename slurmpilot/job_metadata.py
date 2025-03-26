@@ -1,6 +1,7 @@
 import dataclasses
 import json
 from pathlib import Path
+from typing import Optional
 
 from slurmpilot.job_creation_info import JobCreationInfo
 from slurmpilot.jobpath import JobPathLogic
@@ -29,17 +30,22 @@ class JobMetadata:
         return json.dumps(self, cls=EnhancedJSONEncoder)
 
     @classmethod
-    def from_json(cls, string) -> "JobMetadata":
+    def from_json(cls, string) -> Optional["JobMetadata"]:
         dict_from_string = json.loads(string)
-        kwargs = dict_from_string.get("job_creation_info")
-        job_creation_info_fields = [x.name for x in dataclasses.fields(JobCreationInfo)]
-        # consider only fields that are valid, some fields may become invalid with API renaming
-        # for now only `exp_id` has been removed
-        kwargs = {k: v for k, v in kwargs.items() if k in job_creation_info_fields}
-        dict_from_string["job_creation_info"] = JobCreationInfo(**kwargs)
-        return JobMetadata(
-            **dict_from_string,
-        )
+        if "job_creation_info" in dict_from_string:
+            kwargs = dict_from_string.get("job_creation_info")
+            job_creation_info_fields = [
+                x.name for x in dataclasses.fields(JobCreationInfo)
+            ]
+            # consider only fields that are valid, some fields may become invalid with API renaming
+            # for now only `exp_id` has been removed
+            kwargs = {k: v for k, v in kwargs.items() if k in job_creation_info_fields}
+            dict_from_string["job_creation_info"] = JobCreationInfo(**kwargs)
+            return JobMetadata(
+                **dict_from_string,
+            )
+        else:
+            return None
 
     @classmethod
     def from_jobname(cls, jobname: str) -> "JobMetadata":
@@ -63,10 +69,11 @@ def search_metadata_recursively(root: Path):
             with open(file, "r") as f:
                 try:
                     jobmetadata = JobMetadata.from_json(f.read())
-                    # if job has been moved, then the path would not be consistent, only picks files which have not moved
-                    local_path = JobPathLogic(jobname=jobmetadata.jobname)
-                    if local_path.metadata_path().exists():
-                        res.append((file, jobmetadata))
+                    if jobmetadata is not None:
+                        # if job has been moved, then the path would not be consistent, only picks files which have not moved
+                        local_path = JobPathLogic(jobname=jobmetadata.jobname)
+                        if local_path.metadata_path().exists():
+                            res.append((file, jobmetadata))
                 except (json.decoder.JSONDecodeError, TypeError):
                     print(f"Error while reading {file}")
                     pass
