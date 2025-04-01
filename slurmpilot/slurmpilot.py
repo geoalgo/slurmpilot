@@ -411,9 +411,9 @@ class SlurmPilot:
         job_metadata = JobMetadata.from_jobname(jobname=jobname)
         return job_metadata.cluster
 
-    def list_metadatas(self, n_jobs: int):
+    def list_metadatas(self, n_jobs: int, clusters: list[str] | None = None):
         root = (self.config.local_slurmpilot_path() / "jobs").expanduser()
-        return list_metadatas(root=root, n_jobs=n_jobs)
+        return list_metadatas(root=root, n_jobs=n_jobs, clusters=clusters)
 
     def status(self, jobnames: list[str]) -> list[str | None]:
         # TODO handle case of status missing
@@ -425,9 +425,13 @@ class SlurmPilot:
         return [jobinfo.State for jobinfo in jobinfos]
 
     def print_jobs(
-        self, n_jobs: int = 10, max_colwidth: int = 50, status_verbose: bool = True
+        self,
+        n_jobs: int = 10,
+        clusters: list[str] | None = None,
+        max_colwidth: int = 50,
+        status_verbose: bool = True,
     ):
-        jobs = self.list_metadatas(n_jobs)
+        jobs = self.list_metadatas(n_jobs, clusters)
         print("Calling remote sacct on remote nodes to get status.")
         jobinfos = job_infos(
             jobid_from_jobname=self.jobid_from_jobname,

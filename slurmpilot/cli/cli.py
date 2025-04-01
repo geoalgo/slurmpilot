@@ -141,7 +141,9 @@ def main():
         elif args.list_jobs:
             n_jobs = args.list_jobs
             clusters = [args.cluster] if args.cluster is not None else None
-            SlurmPilot(clusters=clusters, config=config).print_jobs(n_jobs=n_jobs)
+            SlurmPilot(clusters=clusters, config=config).print_jobs(
+                n_jobs=n_jobs, clusters=clusters
+            )
 
 
 if __name__ == "__main__":

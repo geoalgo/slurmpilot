@@ -95,7 +95,9 @@ def search_metadata_recursively(root: Path):
     return [jobmetadata for path, jobmetadata in res]
 
 
-def list_metadatas(root: Path, n_jobs: int | None = None) -> list[JobMetadata]:
+def list_metadatas(
+    root: Path, n_jobs: int | None = None, clusters: list[str] | None = None
+) -> list[JobMetadata]:
     """
     :param root: folder where job metadata are searched recursively
     :param n_jobs:
@@ -103,7 +105,11 @@ def list_metadatas(root: Path, n_jobs: int | None = None) -> list[JobMetadata]:
     file is the most recent.
     """
     jobs = search_metadata_recursively(root=root)
-
+    jobs = [
+        jobmetadata
+        for jobmetadata in jobs
+        if clusters is None or jobmetadata.cluster in clusters
+    ]
     if n_jobs is not None:
         jobs = jobs[:n_jobs]
 
