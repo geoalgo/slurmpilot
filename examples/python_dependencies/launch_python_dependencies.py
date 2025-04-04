@@ -27,7 +27,7 @@ if __name__ == "__main__":
         # bash_setup_command="source mmlu/setup_environment.sh",
         src_dir=str(root_dir / "script"),
         python_libraries=[str(root_dir / "custom_library")],
-        python_binary="/home/salinasd/miniconda3/envs/mmlu/bin/python",
+        python_binary="python",
         n_cpus=1,
         max_runtime_minutes=max_runtime_minutes,
         # Shows how to pass an environment variable to the running script
