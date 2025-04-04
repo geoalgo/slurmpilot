@@ -188,14 +188,21 @@ class SlurmPilot:
         from rich.text import Text
         from rich.spinner import Spinner
 
+        def get_status(jobname):
+            res = self.status([jobname])
+            if len(res) > 0:
+                return res[0]
+            else:
+                return None
+
         starttime = time.time()
         spinner_name = "dots"
-        current_status = self.status([jobname])[0]
+        current_status = get_status(jobname)
         wait_interval = 1
         i = 0
         while current_status is None and wait_interval * i < max_seconds:
             time.sleep(wait_interval)
-            current_status = self.status([jobname])[0]
+            current_status = get_status(jobname)
             i += 1
 
         text = f"Waiting job to finish, current status {current_status}"
@@ -207,7 +214,7 @@ class SlurmPilot:
                 current_status in [SlurmJobStatus.pending, SlurmJobStatus.running]
                 and wait_interval * i < max_seconds
             ):
-                current_status = self.status([jobname])[0]
+                current_status = get_status(jobname)
                 text = (
                     f"Waiting job to finish, current status {format_highlight(current_status)} (updated every "
                     f"{wait_interval}s, waited for {int(time.time() - starttime)}s)"
