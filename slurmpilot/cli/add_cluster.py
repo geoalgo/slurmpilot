@@ -95,10 +95,36 @@ def check_ssh_connection(configuration: ClusterConfiguration):
         print(f'> ssh {configuration.name} "ls"')
         print(remote_connection.run("ls", pty=True).stdout)
         print(
-            f"✅ SSH connection to {configuration.name} is successful, enjoy the cluster!"
+            f"✅ SSH connection to {configuration.name} is successful!"
         )
     except Exception as e:
-        print(f"❌ SSH connection to {configuration.name} failed: {str(e)}")
+        print(f"❌ SSH connection to {configuration.name} failed: {e.result}")
+
+    if configuration.remote_path is not None:
+        print(f"\nTrying to access remote path {configuration.remote_path}.")
+        try:
+            cmd = f"ls {configuration.remote_path}"
+            print(f'> {cmd}')
+            remote_connection.run(cmd)
+
+            print(
+                f"✅ Remote path {configuration.remote_path} verified successfully!"
+            )
+        except Exception as e:
+            print(f"❌ Remote path could not be accessed! \n{str(e.result)}")
+
+        print("\nTrying to create a test file in the remote path.")
+        try:
+            cmd = f"touch {configuration.remote_path}/.slurmpilot_test_file && rm {configuration.remote_path}/.slurmpilot_test_file"
+            print(f'> {cmd}')
+            remote_connection.run(cmd)
+            print(
+                f"✅ Test successful!"
+            )
+        except Exception as e:
+            print(f"❌ Test file could not be created! \n{str(e.result)}")
+
+    print("🎉 Enjoy the cluster!")
 
 
 def main():
