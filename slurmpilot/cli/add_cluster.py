@@ -45,7 +45,7 @@ class ClusterConfiguration:
         return s
 
 
-def install_cluster(configuration: ClusterConfiguration):
+def install_cluster(configuration: ClusterConfiguration) -> bool:
     cluster = configuration.name
 
     # TODO this would only works on linux/macos, probably not on windows.
@@ -64,6 +64,7 @@ def install_cluster(configuration: ClusterConfiguration):
             f"Not adding ssh configuration for {cluster} since it was found already. "
             f"If you want to update the ssh configuration, please remove the existing entry from {ssh_config_path}."
         )
+        return False
     else:
         print(f"Adding ssh configuration for {cluster} in {ssh_config_path}")
         print(f"The following is going to be added:\n{configuration.ssh_string()}")
@@ -84,6 +85,7 @@ def install_cluster(configuration: ClusterConfiguration):
         )
         f.write(configuration.slurmpilot_string())
 
+    return True
 
 def check_ssh_connection(configuration: ClusterConfiguration):
     print(f"Trying ssh connection to {configuration.name}.")
@@ -186,9 +188,9 @@ def main():
         account=args.account,
     )
     print(f"Installing user-configured cluster {args.cluster}: {configuration}")
-    install_cluster(configuration)
+    added_cluster = install_cluster(configuration)
 
-    if args.check_ssh_connection:
+    if added_cluster and args.check_ssh_connection:
         check_ssh_connection(configuration)
 
 
