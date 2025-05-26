@@ -35,7 +35,7 @@ class ClusterConfiguration:
         return s
 
     def slurmpilot_string(self) -> str:
-        slurmpilot_keys = ["name", "default_partition", "account"]
+        slurmpilot_keys = ["name", "default_partition", "account", "remote_path"]
         config_dict = {k: self.__dict__[k] for k in slurmpilot_keys}
         config_dict = {k: v for k, v in config_dict.items() if v}
         config_dict["host"] = config_dict["name"]
@@ -165,7 +165,7 @@ def main():
     )
     parser.add_argument(
         "--remote-path",
-        type=int,
+        type=str,
         help="Folder where slurmpilot writes experiments on the remote host.",
         required=False,
     )
