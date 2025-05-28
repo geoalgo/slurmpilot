@@ -69,7 +69,7 @@ class SlurmPilot:
         self.connections = {}
 
         for cluster in clusters:
-            if cluster in self.config.cluster_configs.items():
+            if cluster in self.config.cluster_configs:
                 config = self.config.cluster_configs[cluster]
                 connection_kwargs = dict(
                     master=config.host,
