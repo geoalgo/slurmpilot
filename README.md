@@ -1,157 +1,123 @@
-# Slurmpilot
+<h1 align="center">Slurmpilot 🚀</h1>
 
-Slurmpilot is a python library to launch experiments in Slurm on any cluster from the comfort of your local machine.
-The library aims to take care of things such as sending remote code for execution, calling slurm,
-finding good places to write logs and accessing status from your jobs.
+<p align="center">
+  <strong>Effortlessly launch experiments on Slurm clusters from your local machine.</strong>
+</p>
 
-The key features are:
+<p align="center">
+  <a href="https://pypi.org/project/slurmpilot/"><img src="https://badge.fury.io/py/slurmpilot.svg" alt="PyPI version"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="https://github.com/geoalgo/slurmpilot/actions/workflows/run-pytest.yml"><img src="https://github.com/geoalgo/slurmpilot/actions/workflows/run-pytest.yml/badge.svg" alt="Pytest"></a>
+  <img src="https://img.shields.io/badge/python-3.8+-blue.svg" alt="Python version">
+</p>
 
-* simplify job creation, improve reproducibility and allow launching slurm jobs from your machine
-* allows to easily list experiments, logs or show status and stop jobs
-* easy switch between cluster by just providing different config files
+---
 
-Essentially we want to make it much easier and faster for user to run experiments on Slurm and reach the quality of
-cloud usage.
+**Slurmpilot** is a Python library designed to simplify launching experiments on Slurm clusters directly from your local machine. It automates code synchronization, job submission, and status tracking, letting you focus on your research.
 
-**Important note:** Right now, the library is very much work in progress and the API has not been frozen yet. If you use it, please consider providing your feedback!  
+## 🤔 Why Slurmpilot?
 
-See this [link](notes/features.md)  for a table of features supported.
+While tools like [SkyPilot](https://github.com/skypilot-org/skypilot) and [Submitit](https://github.com/facebookincubator/submitit) are excellent, Slurmpilot offers a more flexible, multi-cluster experience tailored for academic research environments where Docker might not be available. We focus on sending source files directly, avoiding serialization issues and providing a seamless CLI for managing your experiments.
 
-## Installing
+## ✨ Core Features
 
-To install, run the following:
+*   **💻 Remote Job Submission:** Launch Slurm jobs on any cluster with SSH access from your local machine.
+*   **🔁 Simplified Workflow:** Automatically handles code synchronization, log management, and job status tracking.
+*   **🌐 Multi-Cluster Support:** Easily switch between different Slurm clusters.
+*   **📝 Reproducibility:** Keep track of your experiments with automatically generated metadata.
+*   **⌨️ Command-Line Interface (CLI):** Manage jobs, view logs, and check status with simple commands.
+*   **🧪 Local Testing:** Test your scripts locally without a Slurm cluster for faster development.
+
+## 🚀 Getting Started
+
+### 1. Installation
+
+Install Slurmpilot from PyPI:
+
 ```bash
 pip install slurmpilot
 ```
 
-to install the latest version from pypi or this to install the latest commit:
+Or, for the latest version from GitHub:
+
 ```bash
 pip install "slurmpilot[extra] @ git+https://github.com/geoalgo/slurmpilot.git"
 ```
 
-## Scheduling a job
+### 2. Configure Your First Cluster
 
-Let us assume that you have ssh access to a cluster, e.g. that `ssh YOURCLUSTER` works for 
-a cluster `YOURCLUSTER` full of GPU.
+Set up a cluster interactively:
 
-You can launch a job as follow (see `launch_hellocluster.py` for a full example):
+```bash
+sp-add-cluster --cluster YOUR_CLUSTER --host YOUR_HOST --user YOUR_USER --check-ssh-connection
+```
+
+This command creates a configuration file at `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml` and verifies the SSH connection.
+
+## 💡 Usage Examples
+
+### Schedule a Shell Script
 
 ```python
 from slurmpilot import SlurmPilot, JobCreationInfo, unify
 
-cluster = "YOURCLUSTER"
-partition = "YOURPARTITION"
-slurm = SlurmPilot(clusters=[cluster])
+# Initialize SlurmPilot for your cluster
+slurm = SlurmPilot(clusters=["YOURCLUSTER"])
 
-jobinfo = JobCreationInfo(
-    cluster=cluster,
-    partition=partition,
-    jobname=unify("examples/hello-cluster", method="coolname"),  # gets a unique jobname by appending a coolname
+# Define the job
+job_info = JobCreationInfo(
+    cluster="YOURCLUSTER",
+    partition="YOURPARTITION",
+    jobname=unify("hello-cluster", method="coolname"),
     entrypoint="hellocluster_script.sh",
     src_dir="./",
     n_cpus=1,
-    max_runtime_minutes=60,    
+    max_runtime_minutes=60,
 )
-jobid = slurm.schedule_job(jobinfo)
+
+# Launch the job
+job_id = slurm.schedule_job(job_info)
+print(f"Job {job_id} scheduled on {job_info.cluster}")
 ```
-
-Running this script will launch a job to the specified cluster and partition. A couple of points:
-
-* `cluster`: you can use any cluster `YOURCLUSTER` as long as `ssh YOURCLUSTER` works and that Slurm is installed on 
-the host. you can optionally edit the file `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml` to edit the default path used by SlurmPilot or add a default partition  
-* `jobname` must be unique, we use `unify` which appends a unique suffix to ensure unicity even if the scripts is
-  launched multiple times. Nested folders can be used, in this case, files will be written under `~
-  /slurmpilot/jobs/examples/hello-cluster/`
-* `entrypoint` is the script we want to launched and should be present in `{src_dir}/{entrypoint}`
-* `n_cpus` is the number of CPUs, we can control other slurm arguments such as number of GPUs, number of nodes etc
-* `env` allows to pass environment variable to the script that is being remotely executed
-
-### Workflow
-
-When scheduling a job, the files required to run it are first copied to `~/slurmpilot/jobs/YOUR_JOB_NAME` and then
-sent to the remote host to `~/slurmpilot/jobs/YOUR_JOB_NAME`.
-
-In particular, the following files are generated locally under `~/slurmpilot/jobs/YOUR_JOB_NAME`:
-
-* `slurm_script.sh`: a slurm script automatically generated from your options that is executed on the remote node with
-  sbatch
-* `metadata.json`: contains metadata such as time and the configuration of the job that was scheduled
-* `jobid.json`: contains the slurm jobid obtained when scheduling the job, if this step was successful
-* `src_dir`: the folder containing the entrypoint
-* `{src_dir}/entrypoint`: the entrypoint to be executed
-
-On the remote host, the logs are written under `logs/stderr` and `logs/stdout` and the current working dir is also
-`~/slurmpilot/jobs/YOUR_JOB_NAME` unless overwritten in `general.yaml` config (
-see `Other ways to specify configurations` section).
-
-### Scheduling python jobs
-
-If you want to schedule directly a Python job, you can also do:
+### Schedule a Python Script
 
 ```python
-jobinfo = JobCreationInfo(
-    cluster=cluster,
-    partition=partition,
-    jobname=jobname,
-    entrypoint="main_hello_cluster.py",
-    python_args="--argument1 dummy",
+job_info = JobCreationInfo(
+    cluster="YOURCLUSTER",
+    partition="YOURPARTITION",
+    jobname="python-job",
+    entrypoint="main.py",
+    python_args="--data /path/to/data",
     python_binary="~/miniconda3/bin/python",
-    n_cpus=1,
-    max_runtime_minutes=60,
-    # Shows how to pass an environment variable to the running script
-    env={"API_TOKEN": "DUMMY"},
+    n_cpus=2,
+    n_gpus=1,
+    env={"API_TOKEN": "your-token"},
 )
-jobid = slurm.schedule_job(jobinfo)
+
+job_id = slurm.schedule_job(job_info)
 ```
+
 
 This will create a sbatch script as in the previous example but this time, it will call directly your python script
 with the binary and the arguments provided, you can see the full example
 [launch_hellocluster_python.py](examples%2Fhellocluster-python%2Flaunch_hellocluster_python.py).
+
 Note that you can also set `bash_setup_command` which allows to run some command before
 calling your python script (for instance to setup the environment, activate conda, setup a server ...).
 
 If you pass a **list of arguments**, SlurmPilot will create a job-array with one job per argument.
 
-### Adding a cluster configuration
+## ⌨️ Command-Line Interface (CLI)
 
-You can add a configuration for every cluster which can allow to customize the cluster, eg what is the hostname, how the 
-cluster is called, where files are written etc.
+Slurmpilot includes a powerful CLI for managing your jobs. Use `sp --help` for a full list of commands.
 
-You can also directly create/edit the cluster configuration at
-`~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`, see FAQ on editing configurations for more details.
+*   **List jobs:** `sp --list-jobs 5`
+*   **Show job status:** `sp --status <JOB_NAME>`
+*   **View logs:** `sp --log <JOB_NAME>`
+*   **Stop a job:** `sp --stop <JOB_NAME>`
+*   **Check cluster usage:** `sp-usage --cluster YOUR_CLUSTER`
 
-You can also use SlurmPilot to "install" a cluster, e.g. to create a configuration and edit automatically
-your `~/.ssh/config` file to include the cluster.
-
-```bash 
-sp-add-cluster --cluster YOUR_CLUSTER --host YOUR_HOST --remote-path /workspace/markdupont/slurmpilot/ --user YOUR_USER --check-ssh-connection
-```
-
-you can also configure the ssh key to use, whether to keep the ssh connection alive, see `sp-add-cluster --help`
-to get the full list of options.
-
-After adding those information, if you passed `--check-ssh-connection`a ssh connection will be made with the provided
-information to check if the connection can be made. 
-
-## CLI
-
-Slurmpilot provides a CLI which allows to:
-
-* display log of a job
-* list information about a list of jobs in a table
-* stop a job
-* download the artifact of a job locally
-* show the status of a particular job
-* add a cluster
-* test ssh connection of the list of configured clusters
-
-After installing slurmpilot, you can run the following to get help on how to use those commands.
-
-```bash
-sp --help
-```
-
-For instance, running `sp --list-jobs 5` will display informations of the past 5 jobs as follows:
+Example output from `sp --list-jobs 5`:
 
 ```
                                          job           date    cluster                 status                                       full jobname
@@ -162,38 +128,31 @@ job-arboreal-foxhound-of-splendid-domination 24/09/24-12:54   clusterY    Comple
     v2-loop-judge-option-2024-09-23-18-00-49 23/09/24-18:00   clusterZ    Slurm job failed ❌  judge-tuning-v0/v2-loop-judge-option-2024-09-23...
 ```
 
-Note that listing jobs requires the ssh connection to work with every cluster since Slurm will be queried to know the
-current status, if cluster is unavailable because the ssh credentials expired for instance then a place holder status
-will be shown.
+## ⚙️ Configuration
 
-To see the utilisation you made of a cluster, run:
+Customize Slurmpilot's behavior by editing the configuration files in `~/slurmpilot/config/`:
 
-```sp-usage --cluster YOUR_CLUSTER```
-which will show an output like this one:
+*   **Global settings:** `general.yaml`
+*   **Cluster-specific settings:** `clusters/YOUR_CLUSTER.yaml`
 
-```
-Total number of jobs submitted: 1187.
-Total number of hours (only GPU): 841.77
+You can add a configuration for every cluster which can allow to customize the cluster, eg what is the hostname, how the 
+cluster is called, where files are written etc. See FAQ on editing configurations for more details.
 
-Number of GPU hours per type of configuration
-NNodes  n-gpu
-1       1        134.951389
-        2          1.022222
-        4        705.794444
-```
+## 🙌 Contributing
 
-## FAQ/misc
+Contributions are welcome! If you have ideas for improvements or find a bug, please open an issue or submit a pull request on our [GitHub repository](https://github.com/geoalgo/slurmpilot).
 
-**Developer setup.**
-If you want to develop features, run the following:
+To set up a development environment:
 
 ```bash
 git clone https://github.com/geoalgo/slurmpilot.git
 cd slurmpilot
 pip install -e ".[dev]"
-pre-commit install 
-pre-commit autoupdate 
+pre-commit install
 ```
+
+
+## FAQ/misc
 
 **Global configuration.**
 You can specify global properties by writing `~/slurmpilot/config/general.yaml`
@@ -209,7 +168,6 @@ remote_path: "slurmpilot/"
 # optional, cluster that is being used by default
 default_cluster: "YOUR_CLUSTER"
 ```
-
 
 **Cluster configuration(s).**
 
@@ -227,6 +185,25 @@ account: "AN_ACCOUNT"
 default_partition: "NAME_OF_PARTITION_TO_BE_USED_BY_DEFAULT"
 # optional (default to false), whether you should be prompted to use a login password for ssh
 ```
+
+**What is the workflow?**
+
+When scheduling a job, the files required to run it are first copied to `~/slurmpilot/jobs/YOUR_JOB_NAME` and then
+sent to the remote host to `~/slurmpilot/jobs/YOUR_JOB_NAME`.
+
+In particular, the following files are generated locally under `~/slurmpilot/jobs/YOUR_JOB_NAME`:
+
+* `slurm_script.sh`: a slurm script automatically generated from your options that is executed on the remote node with
+  sbatch
+* `metadata.json`: contains metadata such as time and the configuration of the job that was scheduled
+* `jobid.json`: contains the slurm jobid obtained when scheduling the job, if this step was successful
+* `src_dir`: the folder containing the entrypoint
+* `{src_dir}/entrypoint`: the entrypoint to be executed
+
+On the remote host, the logs are written under `logs/stderr` and `logs/stdout` and the current working dir is also
+`~/slurmpilot/jobs/YOUR_JOB_NAME` unless overwritten in `general.yaml` config (
+see `Other ways to specify configurations` section).
+
 
 **Why do you rely on SSH?**
 A typical workflow for Slurm user is to send their code to a remote machine and call sbatch there. We rather
