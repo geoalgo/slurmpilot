@@ -185,7 +185,7 @@ default_partition: "NAME_OF_PARTITION_TO_BE_USED_BY_DEFAULT"
 # optional (default to false), whether you should be prompted to use a login password for ssh
 ```
 
-**What is the workflow?**
+**How does it work?**
 
 When scheduling a job, the files required to run it are first copied to `~/slurmpilot/jobs/YOUR_JOB_NAME` and then
 sent to the remote host to `~/slurmpilot/jobs/YOUR_JOB_NAME`.
