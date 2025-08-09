@@ -26,7 +26,6 @@ While tools like [SkyPilot](https://github.com/skypilot-org/skypilot) and [Submi
 *   **🌐 Multi-Cluster Support:** Easily switch between different Slurm clusters.
 *   **📝 Reproducibility:** Keep track of your experiments with automatically generated metadata.
 *   **⌨️ Command-Line Interface (CLI):** Manage jobs, view logs, and check status with simple commands.
-*   **🧪 Local Testing:** Test your scripts locally without a Slurm cluster for faster development.
 
 ## 🚀 Getting Started
 
