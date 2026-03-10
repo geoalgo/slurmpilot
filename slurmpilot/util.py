@@ -1,21 +1,6 @@
-import os
 import random
 import string
 import time
-from contextlib import contextmanager
-from time import perf_counter
-from typing import Tuple
-
-
-@contextmanager
-def catchtime(name: str, logger=None) -> float:
-    start = perf_counter()
-    print_fun = print if logger is None else logger.info
-    try:
-        print_fun(f"start: {name}")
-        yield lambda: perf_counter() - start
-    finally:
-        print_fun(f"Time for {name}: {perf_counter() - start:.4f} secs")
 
 
 def unify(name: str, method: str = "date") -> str:
@@ -38,35 +23,14 @@ def unify(name: str, method: str = "date") -> str:
     return name + "-" + suffix
 
 
-def print_table(rows):
-    if len(rows) > 0:
-        import pandas as pd
-
-        print(pd.DataFrame(rows).set_index("JobName").to_string())
-
-
-def path_size_human_readable(path: str) -> str:
-    size = os.path.getsize(path)
-    if size < 1024:
-        return f"{size} bytes"
-    elif size < 1024**2:
-        return f"{size / 1024:.2f} KB"
-    elif size < 1024**3:
-        return f"{size / 1024 ** 2:.2f} MB"
-    elif size < 1024**4:
-        return f"{size / 1024 ** 3:.2f} GB"
-
-
-def parse_nseconds_slurm_status(elapsed_str: str) -> int:
-    # parse slurm number of seconds from elapsed string which is of the form
-    # 'NDAYS-NHOURS:NMINUTES:NSECONDS' or 'NHOURS:NMINUTES:NSECONDS' for job that lasted less than a day
-    if "-" in elapsed_str:
-        n_days, elapsed_str = elapsed_str.split("-")
-        n_days = int(n_days)
-    else:
-        n_days = 0
-    n_hours, n_minutes, n_seconds = elapsed_str.split(":")
-    n_seconds = (
-        n_days * 24 * 3600 + int(n_hours) * 3600 + int(n_minutes) * 60 + int(n_seconds)
-    )
-    return n_seconds
+def parse_elapsed_minutes(elapsed: str) -> float:
+    """Convert a Slurm elapsed string (``[D-]HH:MM:SS``) to minutes."""
+    if not elapsed or elapsed == "00:00:00":
+        return 0.0
+    n_days = 0
+    if "-" in elapsed:
+        days_part, elapsed = elapsed.split("-", 1)
+        n_days = int(days_part)
+    parts = elapsed.split(":")
+    h, m, s = int(parts[0]), int(parts[1]), int(parts[2])
+    return n_days * 1440 + h * 60 + m + s / 60

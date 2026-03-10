@@ -5,10 +5,8 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/slurmpilot/"><img src="https://badge.fury.io/py/slurmpilot.svg" alt="PyPI version"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
-  <a href="https://github.com/geoalgo/slurmpilot/actions/workflows/run-pytest.yml"><img src="https://github.com/geoalgo/slurmpilot/actions/workflows/run-pytest.yml/badge.svg" alt="Pytest"></a>
-  <img src="https://img.shields.io/badge/python-3.8+-blue.svg" alt="Python version">
+  <img src="https://img.shields.io/badge/python-3.12+-blue.svg" alt="Python version">
 </p>
 
 ---
@@ -31,27 +29,38 @@ While tools like [SkyPilot](https://github.com/skypilot-org/skypilot) and [Submi
 
 ### 1. Installation
 
-Install Slurmpilot from PyPI:
+Clone and install in editable mode:
 
 ```bash
-pip install slurmpilot
-```
-
-Or, for the latest version from GitHub:
-
-```bash
-pip install "slurmpilot[extra] @ git+https://github.com/geoalgo/slurmpilot.git"
+git clone https://github.com/geoalgo/slurmpilot.git
+cd slurmpilot
+pip install -e .
 ```
 
 ### 2. Configure Your First Cluster
 
-Set up a cluster interactively:
+Create a cluster config file at `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`:
 
-```bash
-sp-add-cluster --cluster YOUR_CLUSTER --host YOUR_HOST --user YOUR_USER --check-ssh-connection
+```yaml
+host: your-cluster-hostname
+user: your-username          # optional, defaults to current user
+remote_path: ~/slurmpilot    # optional, where files are stored on the cluster
+default_partition: gpu       # optional, used when partition is not specified
+account: your-account        # optional, Slurm account to charge
 ```
 
-This command creates a configuration file at `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml` and verifies the SSH connection.
+Optionally create `~/slurmpilot/config/general.yaml` for global settings:
+
+```yaml
+local_path: ~/slurmpilot        # where job files are stored locally
+default_cluster: YOUR_CLUSTER   # used when cluster is not specified
+```
+
+Verify your SSH connection:
+
+```bash
+sp test-ssh YOUR_CLUSTER
+```
 
 ## 💡 Usage Examples
 
@@ -78,68 +87,129 @@ job_info = JobCreationInfo(
 job_id = slurm.schedule_job(job_info)
 print(f"Job {job_id} scheduled on {job_info.cluster}")
 ```
+
 ### Schedule a Python Script
 
 ```python
 job_info = JobCreationInfo(
     cluster="YOURCLUSTER",
     partition="YOURPARTITION",
-    jobname="python-job",
+    jobname=unify("python-job", method="date"),
     entrypoint="main.py",
-    python_args="--data /path/to/data",
     python_binary="~/miniconda3/bin/python",
+    python_args="--data /path/to/data --epochs 10",
     n_cpus=2,
     n_gpus=1,
+    mem=16000,
     env={"API_TOKEN": "your-token"},
 )
 
 job_id = slurm.schedule_job(job_info)
 ```
 
+`bash_setup_command` lets you run commands before the entrypoint (e.g. activate conda, start a server):
 
-This will create a sbatch script as in the previous example but this time, it will call directly your python script
-with the binary and the arguments provided, you can see the full example
-[launch_hellocluster_python.py](examples%2Fhellocluster-python%2Flaunch_hellocluster_python.py).
+```python
+job_info = JobCreationInfo(
+    ...
+    bash_setup_command="source ~/miniconda3/etc/profile.d/conda.sh && conda activate myenv",
+)
+```
 
-Note that you can also set `bash_setup_command` which allows to run some command before
-calling your python script (for instance to setup the environment, activate conda, setup a server ...).
+### Job Arrays
 
-If you pass a **list of arguments**, SlurmPilot will create a job-array with one job per argument.
+Pass a **list** to `python_args` to submit a job array — one task per element:
+
+```python
+job_info = JobCreationInfo(
+    ...
+    python_args=[
+        {"lr": 0.001, "batch": 32},
+        {"lr": 0.01,  "batch": 16},
+    ],
+    n_concurrent_jobs=4,   # optional: limit to 4 running at once
+)
+```
+
+Each dict is converted to `--key value` flags for the corresponding array task.
+
+### Local Python Libraries
+
+Ship additional local packages alongside your code with `python_libraries`:
+
+```python
+job_info = JobCreationInfo(
+    ...
+    python_libraries=["./mylib"],   # paths are copied and added to PYTHONPATH
+)
+```
 
 ## ⌨️ Command-Line Interface (CLI)
 
-Slurmpilot includes a powerful CLI for managing your jobs. Use `sp --help` for a full list of commands.
+All job commands accept an optional job name (defaults to the most recently submitted job).
 
-*   **List jobs:** `sp --list-jobs 5`
-*   **Show job status:** `sp --status <JOB_NAME>`
-*   **View logs:** `sp --log <JOB_NAME>`
-*   **Stop a job:** `sp --stop <JOB_NAME>`
-*   **Check cluster usage:** `sp-usage --cluster YOUR_CLUSTER`
+### Job commands
 
-Example output from `sp --list-jobs 5`:
+| Command | Description |
+|---|---|
+| `sp log [JOBNAME]` | Print stdout/stderr of a job |
+| `sp status [JOBNAME]` | Print current Slurm state of a job |
+| `sp metadata [JOBNAME]` | Print job metadata (cluster, date, …) |
+| `sp path [JOBNAME]` | Show local and remote paths for a job |
+| `sp slurm-script [JOBNAME]` | Print the generated Slurm script |
+| `sp download [JOBNAME]` | Download the job folder from the cluster |
+| `sp stop [JOBNAME]` | Cancel a running job |
+
+### Cluster commands
+
+| Command | Description |
+|---|---|
+| `sp list-jobs [N] [--clusters C …]` | Print a table of the N most recent jobs (default 10) |
+| `sp test-ssh CLUSTER …` | Test SSH connection to one or more clusters |
+| `sp stop-all [--clusters C …]` | Cancel all tracked jobs on cluster(s) |
+
+`--collapse-job-array` on `list-jobs` shows one row per job array instead of one per task.
+
+Example output from `sp list-jobs 5`:
 
 ```
-                                         job           date    cluster                 status                                       full jobname
-    v2-loop-judge-option-2024-09-24-16-47-36 24/09/24-16:47   clusterX    Pending ⏳           judge-tuning-v0/v2-loop-judge-option-2024-09-24...
-    v2-loop-judge-option-2024-09-24-16-47-30 24/09/24-16:47   clusterX    Pending ⏳           judge-tuning-v0/v2-loop-judge-option-2024-09-24...
-job-arboreal-foxhound-of-splendid-domination 24/09/24-12:54   clusterY    Completed ✅         examples/hello-cluster-python/job-arboreal-foxh...
-    v2-loop-judge-option-2024-09-23-18-01-36 23/09/24-18:01   clusterX    CANCELLED by 975941  judge-tuning-v0/v2-loop-judge-option-2024-09-23...
-    v2-loop-judge-option-2024-09-23-18-00-49 23/09/24-18:00   clusterZ    Slurm job failed ❌  judge-tuning-v0/v2-loop-judge-option-2024-09-23...
+job                                          jobid   cluster  creation             min    status      nodelist
+-------------------------------------------  ------  -------  -------------------  -----  ----------  --------
+job-2026-01-01                               42      mock     2026-01-01 00:00:00  5.0    ✅ COMPLETED  node01
+python-job-2026-01-01-12-00-00               43      gpu-c    2026-01-01 12:00:00  12.3   🏃 RUNNING    gpu01
 ```
 
 ## ⚙️ Configuration
 
-Customize Slurmpilot's behavior by editing the configuration files in `~/slurmpilot/config/`:
+### Config directory layout
 
-*   **Global settings:** `general.yaml`
-*   **Cluster-specific settings:** `clusters/YOUR_CLUSTER.yaml`
+```
+~/slurmpilot/config/
+  general.yaml            # optional global settings
+  clusters/
+    YOUR_CLUSTER.yaml     # one file per cluster
+```
 
-You can add a configuration for every cluster which can allow to customize the cluster, eg what is the hostname, how the 
-cluster is called, where files are written etc. See FAQ on editing configurations for more details.
+### `general.yaml`
+
+```yaml
+local_path: ~/slurmpilot      # where job files are stored locally
+default_cluster: YOUR_CLUSTER
+```
+
+### `clusters/YOUR_CLUSTER.yaml`
+
+```yaml
+host: hostname-or-ip
+user: your-username           # optional
+remote_path: ~/slurmpilot     # optional
+default_partition: gpu        # optional
+account: slurm-account        # optional
+```
 
 ## 🙌 Contributing
 
-Contributions are welcome! If you have ideas for improvements or find a bug, please open an issue or submit a pull request on our [GitHub repository](https://github.com/geoalgo/slurmpilot).
+Contributions are welcome! If you have ideas for improvements or find a bug, please open an issue or submit a pull request.
 
 To set up a development environment:
 
@@ -147,103 +217,51 @@ To set up a development environment:
 git clone https://github.com/geoalgo/slurmpilot.git
 cd slurmpilot
 pip install -e ".[dev]"
-pre-commit install
 ```
 
+Run tests:
 
-## FAQ/misc
-
-**Global configuration.**
-You can specify global properties by writing `~/slurmpilot/config/general.yaml`
-and edit the following:
-
-```yaml
-# default path where slurmpilot job files are generated
-local_path: "~/slurmpilot"
-
-# default path where slurmpilot job files are generated on the remote machine, Note: "~" cannot be used
-remote_path: "slurmpilot/"
-
-# optional, cluster that is being used by default
-default_cluster: "YOUR_CLUSTER"
+```bash
+pytest
 ```
 
-**Cluster configuration(s).**
+Run linting:
 
-You can create/edit a cluster configuration directly in `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`,
-for instance a configuration could be like this:
-
-```yaml
-# connecting to this host via ssh should work as Slurmpilot relies on ssh
-host: name
-# optional, specify the path where files will be written by slurmpilot on the remote machine, default to ~/slurmpilot
-remote_path: "/home/username2/foo/slurmpilot/"
-# optional, specify a slurm account if needed (passed with --acount to slurm)
-account: "AN_ACCOUNT"
-# optional, allow to avoid the need to specify the partition
-default_partition: "NAME_OF_PARTITION_TO_BE_USED_BY_DEFAULT"
-# optional (default to false), whether you should be prompted to use a login password for ssh
+```bash
+ruff check slurmpilot tst
 ```
+
+## FAQ
 
 **How does it work?**
 
-When scheduling a job, the files required to run it are first copied to `~/slurmpilot/jobs/YOUR_JOB_NAME` and then
-sent to the remote host to `~/slurmpilot/jobs/YOUR_JOB_NAME`.
+When scheduling a job, the files required to run it are copied to `~/slurmpilot/jobs/YOUR_JOB_NAME` locally, then synced to the remote cluster. The following files are generated:
 
-In particular, the following files are generated locally under `~/slurmpilot/jobs/YOUR_JOB_NAME`:
+* `slurm_script.sh` — sbatch script generated from your `JobCreationInfo`
+* `metadata.json` — job metadata (cluster, date, config)
+* `jobid.json` — Slurm job ID after successful submission
+* `src/` — copy of your source files
+* `logs/stdout`, `logs/stderr` — job output (populated after the job runs)
 
-* `slurm_script.sh`: a slurm script automatically generated from your options that is executed on the remote node with
-  sbatch
-* `metadata.json`: contains metadata such as time and the configuration of the job that was scheduled
-* `jobid.json`: contains the slurm jobid obtained when scheduling the job, if this step was successful
-* `src_dir`: the folder containing the entrypoint
-* `{src_dir}/entrypoint`: the entrypoint to be executed
+The working directory on the remote node is `~/slurmpilot/jobs/YOUR_JOB_NAME`.
 
-On the remote host, the logs are written under `logs/stderr` and `logs/stdout` and the current working dir is also
-`~/slurmpilot/jobs/YOUR_JOB_NAME` unless overwritten in `general.yaml` config (
-see `Other ways to specify configurations` section).
+**Why SSH and not a cluster login node?**
 
+A typical workflow involves SSHing to a login node and calling sbatch there. Slurmpilot automates this so you can manage multiple clusters without ever leaving your local machine.
 
-**Why do you rely on SSH?**
-A typical workflow for Slurm user is to send their code to a remote machine and call sbatch there. We rather
-work with ssh from a machine (typically the developer) machine because we want to be able to switch to several cluster
-without hassle.
+**Why not Docker?**
 
-**Why don't you rely on docker?**
-Docker is a great option and is being used in similar tools built for the cloud such as Skypilot, SageMaker, ...
-However, running docker in Slurm is often not an option due to difficulties to run without root privileges.
-
-**What about other tools?** If you are familiar with tools, you may know the great [Skypilot](https://github.com/skypilot-org/skypilot) which allows
-to run experiments seamlessly between different cloud providers.
-The goal of this project is to ultimately provide a similar high-quality user experience for academics who are running
-on slurm and not cloud machines.
-Extending skypilot to support seems hard given the different nature of slurm and cloud (for instance not all slurm
-cluster could run docker) and hence this library was made rather than just contributing to skypilot.
-This library is also influenced by [Sagemaker python API](https://sagemaker.readthedocs.io/en/stable/) and you may find
-some similarities.
-
-On the Slurm world, a similar library is [Submit](https://github.com/facebookincubator/submitit).
-Compared to Submit, we support launching on any cluster from your local machine and also aim
-at having more features for easy experimenting such as sending source files, or CLI job 
-launching and access to logs or job information. We also deliberately avoid serialization and rather send source files
-which can avoid issues such as [import problems](https://github.com/facebookincubator/submitit/blob/main/docs/tips.md)
-requiring to structure your code in a specific way. 
-
-One frequent approach taken is to use Slurm batch *templates* where environment variables are dynamically filled
-(see examples from [Picotron](https://github.com/huggingface/picotron/blob/main/template/base_job.slurm) and [LAION](https://github.com/SLAMPAI/autoexperiment/tree/master/examples/full_example)).
-This approach is great and lightweight, but it does not easily allow multi-cluster as SlurmPilot.
-
+Docker is great for cloud tools (SkyPilot, SageMaker…) but is often unavailable on Slurm clusters due to root-privilege requirements. Slurmpilot sends source files directly, which is simpler and more portable.
 
 **What are the dependencies?**
-Current dependencies are pandas and pyyaml to read configs, here is the dependency tree.
-We intend to keep dependency to a minimum.
+
+Only `pyyaml` is required at runtime. No pandas, no numpy.
+
 ```
-slurmpilot v0.1.5.dev0
-├── pandas v2.2.3
-│   ├── numpy v2.2.4
-│   ├── python-dateutil v2.9.0.post0
-│   │   └── six v1.17.0
-│   ├── pytz v2025.1
-│   └── tzdata v2025.1
-├── pyyaml v6.0.2
+slurmpilot
+└── pyyaml
 ```
+
+**What about other tools?**
+
+[SkyPilot](https://github.com/skypilot-org/skypilot) is excellent for cloud providers. [Submitit](https://github.com/facebookincubator/submitit) is great for single-cluster Python-native workflows. Slurmpilot targets the multi-cluster academic use case: sending raw source files, no serialization, CLI-first management across clusters.

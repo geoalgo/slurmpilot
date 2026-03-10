@@ -1,116 +1,47 @@
-import dataclasses
 import json
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
-
-from slurmpilot.job_creation_info import JobCreationInfo
-from slurmpilot.jobpath import JobPathLogic
 
 
-@dataclasses.dataclass
+@dataclass
 class JobMetadata:
-    user: str
-    date: str
-    job_creation_info: JobCreationInfo
-    cluster: str
+    """Persisted metadata written to ``metadata.json`` at scheduling time."""
 
-    @property
-    def jobname(self):
-        return self.job_creation_info.jobname
+    jobname: str
+    cluster: str
+    date: str
 
     def to_json(self) -> str:
-        # The methods `to_json` and `from_json` are there because we have nested dataclasses which makes JobMetadata
-        # not directly Json serializable
-        class EnhancedJSONEncoder(json.JSONEncoder):
-            def default(self, o):
-                if dataclasses.is_dataclass(o):
-                    return dataclasses.asdict(o)
-                return super().default(o)
-
-        return json.dumps(self, cls=EnhancedJSONEncoder)
+        return json.dumps({"jobname": self.jobname, "cluster": self.cluster, "date": self.date})
 
     @classmethod
-    def from_json(cls, string) -> Optional["JobMetadata"]:
-        dict_from_string = json.loads(string)
-        if "job_creation_info" in dict_from_string:
-            kwargs = dict_from_string.get("job_creation_info")
-            job_creation_info_fields = [
-                x.name for x in dataclasses.fields(JobCreationInfo)
-            ]
-            # consider only fields that are valid, some fields may become invalid with API renaming
-            # for now only `exp_id` has been removed
-            kwargs = {k: v for k, v in kwargs.items() if k in job_creation_info_fields}
-            dict_from_string["job_creation_info"] = JobCreationInfo(**kwargs)
-            return JobMetadata(
-                **dict_from_string,
-            )
-        else:
-            return None
-
-    @classmethod
-    def from_jobname(cls, jobname: str) -> "JobMetadata":
-        local_path = JobPathLogic(jobname=jobname)
-        with open(local_path.metadata_path(), "r") as f:
-            return JobMetadata.from_json(f.read())
+    def from_json(cls, s: str) -> "JobMetadata":
+        data = json.loads(s)
+        # Support legacy format: jobname nested inside job_creation_info
+        if "jobname" not in data and "job_creation_info" in data:
+            data["jobname"] = data["job_creation_info"]["jobname"]
+        return cls(jobname=data["jobname"], cluster=data["cluster"], date=data["date"])
 
 
-def search_metadata_recursively(root: Path):
-    # we write a custom code to get all the metadata.json recursively under root
-    # the code is custom to avoid searching subdir as soon as we find a metadata.json which is wasteful
-    res = []
-    to_be_visited = [root]
-    while to_be_visited:
-        cur = to_be_visited[-1]
-        to_be_visited.pop()
-        if (cur / "metadata.json").exists():
+def list_metadatas(jobs_root: Path) -> list["JobMetadata"]:
+    """Return all JobMetadata found under ``jobs_root``, sorted newest-first.
 
-            # read metadata file
-            file = cur / "metadata.json"
-            with open(file, "r") as f:
-                try:
-                    jobmetadata = JobMetadata.from_json(f.read())
-                    if jobmetadata is not None:
-                        # if job has been moved, then the path would not be consistent, only picks files which have not moved
-                        local_path = JobPathLogic(jobname=jobmetadata.jobname)
-                        if local_path.metadata_path().exists():
-                            res.append((file, jobmetadata))
-                except (json.decoder.JSONDecodeError, TypeError):
-                    print(f"Error while reading {file}")
-                    pass
-
-        else:
-            for child in cur.glob("*"):
-                if child.is_dir():
-                    to_be_visited.append(child)
-
-    # sort by creation time
-    res = list(
-        sorted(
-            res,
-            key=lambda x: x[0].stat().st_ctime,
-            reverse=True,
-        )
-    )
-
-    return [jobmetadata for path, jobmetadata in res]
-
-
-def list_metadatas(
-    root: Path, n_jobs: int | None = None, clusters: list[str] | None = None
-) -> list[JobMetadata]:
+    Uses a manual traversal that stops descending into a directory as soon as
+    ``metadata.json`` is found, avoiding redundant scanning of ``logs/``,
+    ``src/``, and other subdirectories inside each job folder.
     """
-    :param root: folder where job metadata are searched recursively
-    :param n_jobs:
-    :return: the list of all job metadata contains recursively under root, files are sorted by edit time, the first
-    file is the most recent.
-    """
-    jobs = search_metadata_recursively(root=root)
-    jobs = [
-        jobmetadata
-        for jobmetadata in jobs
-        if clusters is None or jobmetadata.cluster in clusters
-    ]
-    if n_jobs is not None:
-        jobs = jobs[:n_jobs]
-
-    return jobs
+    if not jobs_root.exists():
+        return []
+    metadatas = []
+    stack = [jobs_root]
+    while stack:
+        cur = stack.pop()
+        candidate = cur / "metadata.json"
+        if candidate.exists():
+            try:
+                metadatas.append(JobMetadata.from_json(candidate.read_text()))
+            except Exception:
+                pass
+        else:
+            stack.extend(child for child in cur.iterdir() if child.is_dir())
+    return sorted(metadatas, key=lambda m: m.date, reverse=True)
