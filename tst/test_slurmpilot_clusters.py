@@ -11,9 +11,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from config import ClusterConfig, Config
-from job_creation_info import JobCreationInfo
-from remote_command import CommandResult, RemoteExecution
+from slurmpilot.config import ClusterConfig, Config
+from slurmpilot.job_creation_info import JobCreationInfo
+from slurmpilot.remote_command import CommandResult, RemoteExecution
 from slurmpilot import SlurmPilot
 
 # ---------------------------------------------------------------------------
@@ -107,7 +107,7 @@ class TestLocalCluster:
             return m
         return side_effect
 
-    @patch("remote_command.subprocess.run")
+    @patch("slurmpilot.remote_command.subprocess.run")
     def test_schedule_job_calls_sbatch(self, mock_run, tmp_path):
         mock_run.side_effect = self._fake_run(jobid=77)
         slurm = self._slurm(tmp_path)
@@ -117,7 +117,7 @@ class TestLocalCluster:
         assert len(sbatch_calls) == 1
         assert "slurm_script.sh" in sbatch_calls[0]
 
-    @patch("remote_command.subprocess.run")
+    @patch("slurmpilot.remote_command.subprocess.run")
     def test_schedule_job_writes_jobid_json(self, mock_run, tmp_path):
         mock_run.side_effect = self._fake_run(jobid=55)
         slurm = self._slurm(tmp_path)
@@ -127,7 +127,7 @@ class TestLocalCluster:
         import json
         assert json.loads(jobid_file.read_text())["jobid"] == 55
 
-    @patch("remote_command.subprocess.run")
+    @patch("slurmpilot.remote_command.subprocess.run")
     def test_sbatch_command_contains_cd_to_job_dir(self, mock_run, tmp_path):
         mock_run.side_effect = self._fake_run()
         slurm = self._slurm(tmp_path)
@@ -138,21 +138,21 @@ class TestLocalCluster:
         assert "myjob" in sbatch_cmd
         assert "cd" in sbatch_cmd
 
-    @patch("remote_command.subprocess.run")
+    @patch("slurmpilot.remote_command.subprocess.run")
     def test_status_completed(self, mock_run, tmp_path):
         mock_run.side_effect = self._fake_run(jobid=10, state="COMPLETED")
         slurm = self._slurm(tmp_path)
         slurm.schedule_job(bash_job(tmp_path, "local"))
         assert slurm.status(["job"]) == ["COMPLETED"]
 
-    @patch("remote_command.subprocess.run")
+    @patch("slurmpilot.remote_command.subprocess.run")
     def test_status_running(self, mock_run, tmp_path):
         mock_run.side_effect = self._fake_run(jobid=10, state="RUNNING")
         slurm = self._slurm(tmp_path)
         slurm.schedule_job(bash_job(tmp_path, "local"))
         assert slurm.status(["job"]) == ["RUNNING"]
 
-    @patch("remote_command.subprocess.run")
+    @patch("slurmpilot.remote_command.subprocess.run")
     def test_log_reads_local_files(self, mock_run, tmp_path):
         mock_run.side_effect = self._fake_run()
         slurm = self._slurm(tmp_path)
@@ -165,7 +165,7 @@ class TestLocalCluster:
         stdout, stderr = slurm.log("job")
         assert "local output" in stdout
 
-    @patch("remote_command.subprocess.run")
+    @patch("slurmpilot.remote_command.subprocess.run")
     def test_no_upload_for_local_cluster(self, mock_run, tmp_path):
         """Local cluster must not call upload_folder — files are already there."""
         mock_run.side_effect = self._fake_run()
@@ -187,7 +187,7 @@ class TestLocalCluster:
         with pytest.raises(RuntimeError, match="sbatch failed"):
             slurm.schedule_job(bash_job(tmp_path, "local"))
 
-    @patch("remote_command.subprocess.run")
+    @patch("slurmpilot.remote_command.subprocess.run")
     def test_python_library_copied_to_job_folder_local(self, mock_run, tmp_path):
         """python_libraries are copied into the local job folder for the local backend."""
         mock_run.side_effect = self._fake_run()
@@ -214,7 +214,7 @@ class TestLocalCluster:
         assert (tmp_path / "jobs" / "libjob" / "mylib").is_dir()
         assert (tmp_path / "jobs" / "libjob" / "mylib" / "values.py").exists()
 
-    @patch("remote_command.subprocess.run")
+    @patch("slurmpilot.remote_command.subprocess.run")
     def test_pythonpath_in_slurm_script_local(self, mock_run, tmp_path):
         """Slurm script for local backend contains PYTHONPATH with job_dir and lib paths."""
         mock_run.side_effect = self._fake_run()

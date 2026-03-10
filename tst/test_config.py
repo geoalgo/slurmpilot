@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from config import ClusterConfig, Config, default_cluster_and_partition, load_config
+from slurmpilot.config import ClusterConfig, Config, default_cluster_and_partition, load_config
 
 
 def make_config(**kwargs) -> Config:
@@ -140,7 +140,7 @@ class TestLoadConfig:
 
     def test_defaults_to_home_slurmpilot_config_when_no_path(self, monkeypatch, tmp_path):
         # Redirect the default path so we don't touch the real ~/.slurmpilot/config.
-        monkeypatch.setattr("config.DEFAULT_CONFIG_PATH", tmp_path)
+        monkeypatch.setattr("slurmpilot.config.DEFAULT_CONFIG_PATH", tmp_path)
         write_cluster(tmp_path / "clusters", "cl", host="h.org")
         config = load_config()
         assert "cl" in config.cluster_configs

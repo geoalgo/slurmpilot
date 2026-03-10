@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from mock_slurm import MockSlurm
+from slurmpilot.mock_slurm import MockSlurm
 
 # ---------------------------------------------------------------------------
 # Helpers

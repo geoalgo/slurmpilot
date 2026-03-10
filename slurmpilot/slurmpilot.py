@@ -8,15 +8,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import List
 
-from config import Config, default_cluster_and_partition, load_config  # noqa: F401
-from job_creation_info import JobCreationInfo  # noqa: F401
-from job_metadata import JobMetadata
-from job_path import JobPath
-from mock_slurm import MockSlurm
-from remote_command import LocalExecution, RemoteExecution, SSHExecution
-from slurm_script import generate_slurm_script
-from slurmpilot_logging import SlurmPilotLogging
-from util import unify  # noqa: F401
+from .config import Config, default_cluster_and_partition, load_config  # noqa: F401
+from .job_creation_info import JobCreationInfo  # noqa: F401
+from .job_metadata import JobMetadata
+from .job_path import JobPath
+from .mock_slurm import MockSlurm
+from .remote_command import LocalExecution, RemoteExecution, SSHExecution
+from .slurm_script import generate_slurm_script
+from .slurmpilot_logging import SlurmPilotLogging
+from .util import unify  # noqa: F401
 
 logger = logging.getLogger(__name__)
 

@@ -9,9 +9,10 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "pyyaml>=6.0.3",
+    "coolname>=2.0",
 ]
 
-[dependency-groups]
+[project.optional-dependencies]
 dev = [
     "pytest>=9.0.2",
     "ruff>=0.15.5",
@@ -19,30 +20,17 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tst"]
-pythonpath = ["slurmpilot"]
+pythonpath = ["."]
 
 [build-system]
 requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-package-dir = {"" = "slurmpilot"}
-py-modules = [
-    "remote_command",
-    "mock_slurm",
-    "config",
-    "job_creation_info",
-    "job_path",
-    "job_metadata",
-    "slurm_script",
-    "slurmpilot",
-    "slurmpilot_logging",
-    "cli",
-    "util",
-]
+[tool.setuptools.packages.find]
+include = ["slurmpilot*"]
 
 [project.scripts]
-sp = "cli:main"
+sp = "slurmpilot.cli:main"
 
 [tool.ruff]
 src = ["slurmpilot", "tst"]

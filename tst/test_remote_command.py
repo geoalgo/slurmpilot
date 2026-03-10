@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from remote_command import CommandResult, LocalExecution, SSHExecution
+from slurmpilot.remote_command import CommandResult, LocalExecution, SSHExecution
 
 # ---------------------------------------------------------------------------
 # CommandResult
@@ -106,7 +106,7 @@ class TestSSHExecution:
         exe = SSHExecution(host="cluster.example.com")
         assert exe._remote == "cluster.example.com"
 
-    @patch("remote_command.subprocess.run")
+    @patch("slurmpilot.remote_command.subprocess.run")
     def test_run_success(self, mock_run):
         mock_run.return_value = _proc(stdout="hello\n")
         result = self.exe.run("echo hello")
@@ -118,7 +118,7 @@ class TestSSHExecution:
             text=True,
         )
 
-    @patch("remote_command.subprocess.run")
+    @patch("slurmpilot.remote_command.subprocess.run")
     def test_run_failure(self, mock_run):
         mock_run.return_value = _proc(stderr="no such file", returncode=1)
         result = self.exe.run("ls /bad")
@@ -126,7 +126,7 @@ class TestSSHExecution:
         assert result.return_code == 1
         assert result.stderr == "no such file"
 
-    @patch("remote_command.subprocess.run")
+    @patch("slurmpilot.remote_command.subprocess.run")
     def test_run_with_env(self, mock_run):
         mock_run.return_value = _proc(stdout="42\n")
         self.exe.run("echo $FOO", env={"FOO": "42"})
@@ -134,27 +134,27 @@ class TestSSHExecution:
         assert "FOO=42" in remote_command_arg
         assert remote_command_arg.startswith("env ")
 
-    @patch("remote_command.subprocess.run")
+    @patch("slurmpilot.remote_command.subprocess.run")
     def test_run_retries_on_failure_then_succeeds(self, mock_run):
         mock_run.side_effect = [_proc(returncode=1), _proc(returncode=0)]
         result = self.exe.run("flaky", retries=1)
         assert not result.failed
         assert mock_run.call_count == 2
 
-    @patch("remote_command.subprocess.run")
+    @patch("slurmpilot.remote_command.subprocess.run")
     def test_run_exhausts_retries(self, mock_run):
         mock_run.return_value = _proc(returncode=1)
         result = self.exe.run("bad", retries=2)
         assert result.failed
         assert mock_run.call_count == 3  # 1 initial + 2 retries
 
-    @patch("remote_command.subprocess.run")
+    @patch("slurmpilot.remote_command.subprocess.run")
     def test_run_no_retry_on_success(self, mock_run):
         mock_run.return_value = _proc(returncode=0)
         self.exe.run("ok", retries=5)
         assert mock_run.call_count == 1
 
-    @patch("remote_command.subprocess.run")
+    @patch("slurmpilot.remote_command.subprocess.run")
     def test_upload_folder(self, mock_run):
         mock_run.return_value = _proc()
         self.exe.upload_folder(Path("/local/mydir"), Path("/remote/jobs"))
@@ -165,13 +165,13 @@ class TestSSHExecution:
         assert rsync_call[0] == "rsync"
         assert rsync_call[-1] == "alice@cluster.example.com:/remote/jobs"
 
-    @patch("remote_command.subprocess.run")
+    @patch("slurmpilot.remote_command.subprocess.run")
     def test_upload_folder_raises_on_rsync_failure(self, mock_run):
         mock_run.side_effect = [_proc(), _proc(returncode=255, stderr="refused")]
         with pytest.raises(RuntimeError, match="rsync upload failed"):
             self.exe.upload_folder(Path("/local/mydir"), Path("/remote/jobs"))
 
-    @patch("remote_command.subprocess.run")
+    @patch("slurmpilot.remote_command.subprocess.run")
     def test_download_folder(self, mock_run):
         mock_run.return_value = _proc()
         with TemporaryDirectory() as local:
@@ -180,7 +180,7 @@ class TestSSHExecution:
         assert rsync_call[0] == "rsync"
         assert "alice@cluster.example.com:/remote/jobs/myjob" in rsync_call
 
-    @patch("remote_command.subprocess.run")
+    @patch("slurmpilot.remote_command.subprocess.run")
     def test_download_folder_raises_on_rsync_failure(self, mock_run):
         mock_run.return_value = _proc(returncode=1, stderr="error")
         with TemporaryDirectory() as local:

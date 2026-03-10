@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from cli import (
+from slurmpilot.cli import (
     _resolve_jobname,
     cmd_list_jobs,
     cmd_log,
@@ -18,9 +18,9 @@ from cli import (
     cmd_stop_all,
     cmd_test_ssh,
 )
-from config import Config
-from job_metadata import JobMetadata
-from job_path import JobPath
+from slurmpilot.config import Config
+from slurmpilot.job_metadata import JobMetadata
+from slurmpilot.job_path import JobPath
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -96,7 +96,7 @@ def _mock_sp():
 def test_cmd_status_prints_state(job, config, capsys):
     sp = _mock_sp()
     sp.status.return_value = ["COMPLETED"]
-    with patch("cli._make_sp", return_value=(sp, JOBNAME)):
+    with patch("slurmpilot.cli._make_sp", return_value=(sp, JOBNAME)):
         cmd_status(_args(), config)
     assert "COMPLETED" in capsys.readouterr().out
 
@@ -104,14 +104,14 @@ def test_cmd_status_prints_state(job, config, capsys):
 def test_cmd_status_prints_unknown_when_none(job, config, capsys):
     sp = _mock_sp()
     sp.status.return_value = [None]
-    with patch("cli._make_sp", return_value=(sp, JOBNAME)):
+    with patch("slurmpilot.cli._make_sp", return_value=(sp, JOBNAME)):
         cmd_status(_args(), config)
     assert "unknown" in capsys.readouterr().out
 
 
 def test_cmd_stop_calls_stop_job(job, config, capsys):
     sp = _mock_sp()
-    with patch("cli._make_sp", return_value=(sp, JOBNAME)):
+    with patch("slurmpilot.cli._make_sp", return_value=(sp, JOBNAME)):
         cmd_stop(_args(), config)
     sp.stop_job.assert_called_once_with(JOBNAME)
     assert JOBNAME in capsys.readouterr().out
@@ -132,7 +132,7 @@ def test_cmd_path_shows_remote_for_ssh_cluster(job, config, capsys):
     sp = _mock_sp()
     sp.local_job_path.return_value = Path("/local/path")
     sp.remote_job_path.return_value = Path("~/slurmpilot/jobs/test/job")
-    with patch("cli._make_sp", return_value=(sp, JOBNAME)):
+    with patch("slurmpilot.cli._make_sp", return_value=(sp, JOBNAME)):
         cmd_path(_args(), config)
     out = capsys.readouterr().out
     assert "local" in out
@@ -200,7 +200,7 @@ _MOCK_SACCT_INFO = [{
 
 def test_cmd_list_jobs_shows_table(job, config, capsys):
     args = argparse.Namespace(n=10, clusters=None, collapse_job_array=False)
-    with patch("cli.SlurmPilot") as MockSP:
+    with patch("slurmpilot.cli.SlurmPilot") as MockSP:
         MockSP.return_value.sacct_info.return_value = _MOCK_SACCT_INFO
         cmd_list_jobs(args, config)
     out = capsys.readouterr().out
@@ -223,7 +223,7 @@ def test_cmd_list_jobs_filters_by_cluster(job, config, capsys):
 
 def test_cmd_test_ssh_success(config, capsys):
     args = argparse.Namespace(clusters=["mock"])
-    with patch("cli.SlurmPilot") as MockSP:
+    with patch("slurmpilot.cli.SlurmPilot") as MockSP:
         MockSP.return_value.test_ssh.return_value = True
         cmd_test_ssh(args, config)
     assert "✅" in capsys.readouterr().out
@@ -231,7 +231,7 @@ def test_cmd_test_ssh_success(config, capsys):
 
 def test_cmd_test_ssh_failure(config, capsys):
     args = argparse.Namespace(clusters=["badhost"])
-    with patch("cli.SlurmPilot") as MockSP:
+    with patch("slurmpilot.cli.SlurmPilot") as MockSP:
         MockSP.return_value.test_ssh.return_value = False
         cmd_test_ssh(args, config)
     assert "❌" in capsys.readouterr().out
@@ -243,7 +243,7 @@ def test_cmd_test_ssh_failure(config, capsys):
 
 def test_cmd_stop_all_cancels_jobs(job, config, capsys):
     args = argparse.Namespace(clusters=[CLUSTER])
-    with patch("cli.SlurmPilot") as MockSP:
+    with patch("slurmpilot.cli.SlurmPilot") as MockSP:
         MockSP.return_value.stop_all_jobs.return_value = [JOBNAME]
         cmd_stop_all(args, config)
     out = capsys.readouterr().out
@@ -253,7 +253,7 @@ def test_cmd_stop_all_cancels_jobs(job, config, capsys):
 
 def test_cmd_stop_all_no_jobs(config, capsys):
     args = argparse.Namespace(clusters=[CLUSTER])
-    with patch("cli.SlurmPilot") as MockSP:
+    with patch("slurmpilot.cli.SlurmPilot") as MockSP:
         MockSP.return_value.stop_all_jobs.return_value = []
         cmd_stop_all(args, config)
     assert "No jobs to stop" in capsys.readouterr().out

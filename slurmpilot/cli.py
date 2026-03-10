@@ -17,12 +17,12 @@ import argparse
 import sys
 from pathlib import Path
 
-from config import Config, load_config
-from job_metadata import JobMetadata, list_metadatas
-from job_path import JobPath
-from slurmpilot import SlurmPilot
-from slurmpilot_logging import _cluster, _jobname
-from util import parse_elapsed_minutes
+from .config import Config, load_config
+from .job_metadata import JobMetadata, list_metadatas
+from .job_path import JobPath
+from .slurmpilot import SlurmPilot
+from .slurmpilot_logging import _cluster, _jobname
+from .util import parse_elapsed_minutes
 
 _STATUS_EMOJI = {
     "COMPLETED":     "✅",
@@ -132,6 +132,10 @@ def cmd_status(args: argparse.Namespace, config: Config) -> None:
 
 
 def cmd_download(args: argparse.Namespace, config: Config) -> None:
+    meta = _resolve_jobname(args.jobname, config)
+    if meta.cluster in ("local", "mock"):
+        print(f"Nothing to download: job is on {_cluster(meta.cluster)} (no remote).")
+        return
     sp, jobname = _make_sp(args.jobname, config)
     print(f"Downloading {_jobname(jobname)}…")
     sp.download_job(jobname)

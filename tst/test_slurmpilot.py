@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from config import Config
-from job_creation_info import JobCreationInfo
+from slurmpilot.config import Config
+from slurmpilot.job_creation_info import JobCreationInfo
 from slurmpilot import SlurmPilot
 
 # ---------------------------------------------------------------------------

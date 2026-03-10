@@ -1,7 +1,7 @@
 import io
 from pathlib import Path
 
-from job_creation_info import JobCreationInfo
+from .job_creation_info import JobCreationInfo
 
 
 def generate_slurm_script(
