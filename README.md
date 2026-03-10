@@ -137,12 +137,58 @@ Each dict is converted to `--key value` flags for the corresponding array task.
 
 Ship additional local packages alongside your code with `python_libraries`:
 
+
 ```python
 job_info = JobCreationInfo(
     ...
     python_libraries=["./mylib"],   # paths are copied and added to PYTHONPATH
 )
 ```
+
+### Local mode
+
+Use `cluster="local"` to submit jobs via the `sbatch`/`sacct`/`scancel` binaries running on the **current machine**. This is useful when your development machine is itself a Slurm login node and you want to skip SSH entirely:
+
+```python
+slurm = SlurmPilot(clusters=["local"])
+
+job_info = JobCreationInfo(
+    cluster="local",
+    partition="gpu",
+    jobname=unify("my-job", method="date"),
+    entrypoint="train.py",
+    python_binary="python",
+    n_cpus=4,
+    n_gpus=1,
+)
+
+job_id = slurm.schedule_job(job_info)
+```
+
+Job files are still written to `~/slurmpilot/jobs/` locally; no SSH connection is opened.
+
+### Mock mode
+
+Use `cluster="mock"` to run jobs as plain local processes — no Slurm installation required. `MockSlurm` intercepts `sbatch`, `sacct`, and `scancel` calls, running the generated bash script as a subprocess and using its PID as the job ID.
+
+This is the recommended mode for **unit tests**:
+
+```python
+slurm = SlurmPilot(clusters=["mock"])
+
+job_info = JobCreationInfo(
+    cluster="mock",
+    jobname="test/my-job",
+    entrypoint="run.sh",
+    src_dir="./tests/fixtures",
+)
+
+job_id = slurm.schedule_job(job_info)
+slurm.wait_completion(job_info.jobname, max_seconds=30)
+stdout, stderr = slurm.log(job_info.jobname)
+```
+
+`sacct` returns `RUNNING` while the process is alive, then `COMPLETED` / `FAILED` / `CANCELLED` based on its exit code. No cluster config file is needed.
 
 ## ⌨️ Command-Line Interface (CLI)
 
