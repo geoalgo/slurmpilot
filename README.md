@@ -39,7 +39,8 @@ pip install -e .
 
 ### 2. Configure Your First Cluster
 
-Create a cluster config file at `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`:
+In case you want to schedule job from your machine, you need to first configure ssh by
+creating a cluster config file at `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`:
 
 ```yaml
 host: your-cluster-hostname
@@ -88,6 +89,32 @@ job_id = slurm.schedule_job(job_info)
 print(f"Job {job_id} scheduled on {job_info.cluster}")
 ```
 
+where `YOURCLUSTER` should be reachable with `sp test-ssh YOUR_CLUSTER`.
+
+### Local mode
+
+Alternatively, you can use `cluster="local"` if you are running Slurmpilot directly from a Slurm login node:
+
+```python
+slurm = SlurmPilot(clusters=["local"])
+
+job_info = JobCreationInfo(
+    cluster="local",
+    partition="gpu",
+    jobname=unify("my-job", method="date"),
+    entrypoint="train.py",
+    python_binary="python",
+    n_cpus=4,
+    n_gpus=1,
+)
+
+job_id = slurm.schedule_job(job_info)
+```
+
+Job files are still written to `~/slurmpilot/jobs/` locally; no SSH connection is opened.
+
+ 
+
 ### Schedule a Python Script
 
 ```python
@@ -131,7 +158,7 @@ job_info = JobCreationInfo(
 )
 ```
 
-Each dict is converted to `--key value` flags for the corresponding array task.
+When calling the entrypoint, each dict is converted to CLI arguments, e.g. `--lr 0.001`,  for the corresponding array task.
 
 ### Local Python Libraries
 
@@ -141,31 +168,9 @@ Ship additional local packages alongside your code with `python_libraries`:
 ```python
 job_info = JobCreationInfo(
     ...
-    python_libraries=["./mylib"],   # paths are copied and added to PYTHONPATH
+    python_libraries=["./mylib"],   # library is copied to the job path and added to PYTHONPATH
 )
 ```
-
-### Local mode
-
-Use `cluster="local"` to submit jobs via the `sbatch`/`sacct`/`scancel` binaries running on the **current machine**. This is useful when your development machine is itself a Slurm login node and you want to skip SSH entirely:
-
-```python
-slurm = SlurmPilot(clusters=["local"])
-
-job_info = JobCreationInfo(
-    cluster="local",
-    partition="gpu",
-    jobname=unify("my-job", method="date"),
-    entrypoint="train.py",
-    python_binary="python",
-    n_cpus=4,
-    n_gpus=1,
-)
-
-job_id = slurm.schedule_job(job_info)
-```
-
-Job files are still written to `~/slurmpilot/jobs/` locally; no SSH connection is opened.
 
 ### Mock mode
 
