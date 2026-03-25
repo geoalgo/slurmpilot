@@ -221,6 +221,54 @@ All job commands accept an optional job name (defaults to the most recently subm
 
 `--collapse-job-array` on `list-jobs` shows one row per job array instead of one per task.
 
+### Launch command
+
+`sp launch` builds and submits a job from a YAML config file and/or inline CLI flags. CLI flags always override YAML values.
+
+```bash
+# Inline flags only
+sp launch --entrypoint main.py --cluster mycluster --partition gpu --n-gpus 1
+
+# From a YAML config (src_dir defaults to the YAML file's directory)
+sp launch --config job.yaml
+
+# YAML with a one-off override
+sp launch --config job.yaml --cluster local --partition debug
+
+# Preview the generated sbatch script without submitting
+sp launch --config job.yaml --dry-run
+
+# Submit and block until the job finishes, then print logs
+sp launch --config job.yaml --wait
+sp launch --config job.yaml --wait --max-wait-seconds 3600
+```
+
+A minimal `job.yaml`:
+
+```yaml
+cluster: mycluster
+partition: gpu
+entrypoint: train.py          # relative to the YAML file's directory
+
+python_binary: python
+python_args: "--epochs 10"
+n_cpus: 4
+n_gpus: 1
+max_runtime_minutes: 120
+```
+
+For a job array, set `python_args` to a list:
+
+```yaml
+python_args:
+  - lr: 0.001
+    batch: 32
+  - lr: 0.01
+    batch: 16
+```
+
+`jobname` is auto-generated from the entrypoint stem via coolname if not provided (e.g. `train-charming-swift-otter-of-justice`).
+
 Example output from `sp list-jobs 5`:
 
 ```
