@@ -1,46 +1,40 @@
 [project]
-name = "slurmpilot"
-version = "0.1.5-dev0"
-description = "A tool for launching and tracking Slurm jobs across many clusters in Python."
-license = {file = "LICENSE.md"}
-authors = [
-    {name = "David Salinas", email = "check@mywebsite.com"},
-]
+name = "slurmpilot2"
+version = "0.1.0"
+description = "Add your description here"
 readme = "README.md"
-keywords = ["ML ops", "slurm", "experiment management"]
-classifiers = [
-    "Topic :: Scientific/Engineering",
-    "Programming Language :: Python :: 3",
+authors = [
+    { email = "david.salinas.pro@gmail.com" }
 ]
-#packages = [
-#  { include = "slurmpilot" },
-#]
-
-requires-python = ">=3.10"
-
+requires-python = ">=3.12"
 dependencies = [
-    "pyyaml>=5.0",
-    "pandas>=2.0"
+    "pyyaml>=6.0.3",
+    "coolname>=2.0",
 ]
 
-[dependency-groups]
+[project.optional-dependencies]
 dev = [
-    "black>=25.1.0",
-    "pre-commit>=4.1.0",
-    "pytest>=8.3.5",
+    "pytest>=9.0.2",
+    "ruff>=0.15.5",
 ]
-
-[project.urls]
-Homepage = "https://github.com/geoalgo/slurmpilot"
-Documentation = "https://github.com/geoalgo/slurmpilot"
-Repository = "https://github.com/geoalgo/slurmpilot.git"
 
 [tool.pytest.ini_options]
+testpaths = ["tst"]
 pythonpath = ["."]
 
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["slurmpilot*"]
 
 [project.scripts]
-slurmpilot = "slurmpilot.cli.cli:main"
-sp = "slurmpilot.cli.cli:main"
-sp-add-cluster = "slurmpilot.cli.add_cluster:main"
-sp-usage = "slurmpilot.cli.usage:main"
+sp = "slurmpilot.cli:main"
+
+[tool.ruff]
+src = ["slurmpilot", "tst"]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

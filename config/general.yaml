@@ -1,5 +1,0 @@
-# default path where slurmpilot job files are generated
-local_path: "~/slurmpilot"
-
-# default path where slurmpilot job files are generated on the remote machine, Note: "~" cannot be used
-remote_path: "slurmpilot/"

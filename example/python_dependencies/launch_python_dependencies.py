@@ -10,7 +10,9 @@ from slurmpilot.util import unify
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    logging.basicConfig(level=logging.INFO)
+
+    # cluster, partition = "local", "YOURPARTITION"  # to run with a machine with SLURM access
+    # cluster, partition = "mock", "dummy"  # to run with an emulation of SLURM for testing
     cluster, partition = default_cluster_and_partition()
     jobname = unify(
         "examples/custom-library/job", method="coolname"
@@ -23,11 +25,12 @@ if __name__ == "__main__":
         partition=partition,
         jobname=jobname,
         entrypoint="main_using_custom_library.py",
-        python_args="--learning-rate 0.01",
+        python_args=["--learning-rate 0.01", "--learning-rate 0.02"],
+        # python_args="--learning-rate 0.01",
         # bash_setup_command="source mmlu/setup_environment.sh",
         src_dir=str(root_dir / "script"),
         python_libraries=[str(root_dir / "custom_library")],
-        python_binary="python",
+        python_binary="/bin/python3",
         n_cpus=1,
         max_runtime_minutes=max_runtime_minutes,
         # Shows how to pass an environment variable to the running script
@@ -35,9 +38,8 @@ if __name__ == "__main__":
     )
     jobid = slurm.schedule_job(jobinfo)
 
-    slurm.wait_completion(jobname=jobname, max_seconds=max_runtime_minutes * 60)
-    print(slurm.job_creation_metadata(jobname))
-    print(slurm.status([jobname]))
+    slurm.wait_completion(jobname=jobname, max_seconds=max_runtime_minutes * 600)
 
-    print("--logs:")
-    slurm.print_log(jobname=jobname)
+    stdout, stderr = slurm.log(jobname=jobname)
+    print(stdout)
+    print(stderr)

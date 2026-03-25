@@ -1,166 +1,131 @@
-import json
 import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import NamedTuple, Dict, List, Tuple
 
 import yaml
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    format="%(asctime)s | %(levelname)s | %(message)s", level=logging.INFO
-)
-config_path = Path("~/slurmpilot/config").expanduser()
 
-
-class GeneralConfig(NamedTuple):
-    # General configurations containing defaults
-
-    # default path where slurmpilot job files are generated
-    local_path: str = str(Path("~/slurmpilot").expanduser())
-
-    # default cluster to be used, must have a file `config/clusters/{default_cluster}.yaml` associated
-    default_cluster: str | None = None
+DEFAULT_CONFIG_PATH = Path("~/slurmpilot/config")
 
 
 @dataclass
 class ClusterConfig:
-    # Configuration for a cluster, can override default in GeneralConfig
     host: str
-    remote_path: str = "slurmpilot/"
-    account: str | None = None
     user: str | None = None
+    account: str | None = None
+    remote_path: str = "~/slurmpilot"
     default_partition: str | None = None
 
 
 class Config:
     def __init__(
         self,
-        general_config: GeneralConfig,
-        cluster_configs: Dict[str, ClusterConfig] | None = None,
+        local_path: str | Path | None = None,
+        cluster_configs: dict[str, ClusterConfig] | None = None,
+        default_cluster: str | None = None,
     ):
-        self.general_config = general_config
-        self.cluster_configs = cluster_configs if cluster_configs is not None else {}
-
-    @classmethod
-    def load_from_path(cls, path=config_path, clusters: List[str] | None = None):
-        general_config = load_general_config(path / "general.yaml")
-        cluster_configs = {
-            cluster_config_path.stem: load_cluster_config(cluster_config_path)
-            for cluster_config_path in (path / "clusters").rglob("*.yaml")
-            if clusters is None or cluster_config_path.stem in clusters
-        }
-        return cls(general_config, cluster_configs)
-
-    def save_to_path(self, path=config_path, clusters: List[str] | None = None):
-        path.mkdir(parents=True, exist_ok=True)
-        (path / "clusters").mkdir(parents=True, exist_ok=True)
-        if self.general_config:
-            with open(path / "general.yaml", "w") as f:
-                yaml.dump(self.general_config._asdict(), f)
-        if clusters is None:
-            clusters = self.cluster_configs.keys()
-        for cluster in clusters:
-            with open(path / "clusters" / f"{cluster}.yaml", "w") as f:
-                dict_without_none = {
-                    k: v for k, v in self.cluster_configs[cluster].__dict__.items() if v
-                }
-                yaml.dump(dict_without_none, f)
-
-    def __str__(self):
-        res = {
-            "general_config": self.general_config,
-            "cluster_configs": "\n".join(
-                [f"{k}: {v}" for k, v in self.cluster_configs.items()]
-            ),
-        }
-        return json.dumps(res, indent=4)
+        if local_path is None:
+            local_path = Path("~/slurmpilot").expanduser()
+        self._local_path = Path(local_path)
+        self.cluster_configs = cluster_configs or {}
+        self.default_cluster = default_cluster
 
     def local_slurmpilot_path(self) -> Path:
-        return Path(self.general_config.local_path).expanduser()
+        return self._local_path.expanduser()
 
-    def remote_slurmpilot_path(self, cluster: str | None = None) -> Path:
-        # first look at cluster config, then general config then default
+    def remote_slurmpilot_path(self, cluster: str) -> Path:
         if cluster in self.cluster_configs:
             return Path(self.cluster_configs[cluster].remote_path)
-        else:
-            return Path(ClusterConfig.remote_path)
+        return Path("~/slurmpilot")
 
 
-def load_yaml(path: Path) -> dict:
-    with open(path, "r") as stream:
-        return yaml.safe_load(stream)
+def load_config(path: Path | None = None) -> Config:
+    """Load a :class:`Config` from YAML files on disk.
 
+    Directory layout::
 
-def load_cluster_config(path: Path) -> ClusterConfig:
-    if path.exists():
-        try:
-            return ClusterConfig(**load_yaml(path))
-        except TypeError as e:
-            raise ValueError(f"Could not read configuration in {path}: {str(e)}")
-    else:
-        return None
+        {path}/
+          general.yaml            # optional; keys: local_path, default_cluster
+          clusters/
+            {cluster}.yaml        # one file per cluster; keys match ClusterConfig fields
 
-
-def load_general_config(path: Path) -> GeneralConfig:
-    if path.exists():
-        args = load_yaml(path)
-        if "local_path" in args:
-            args["local_path"] = str(Path(args["local_path"]).expanduser())
-        return GeneralConfig(**load_yaml(path))
-    else:
-        return None
-
-
-def load_config(user_path: Path | None = None) -> Config:
+    :param path: config directory. Defaults to ``~/slurmpilot/config``.
     """
-    :param user_path:
-    :return: loads configuration by default from ~/slurmpilot/config unless `user_path` is specified.
-    """
-    if user_path is None:
-        user_path = Path("~/slurmpilot/config").expanduser()
-    user_config = Config.load_from_path(user_path)
+    if path is None:
+        path = DEFAULT_CONFIG_PATH.expanduser()
+    path = Path(path).expanduser()
 
-    general_config = user_config.general_config
-    if general_config is None:
-        general_config = GeneralConfig(local_path="~/slurmpilot")
+    local_path, default_cluster = _load_general(path / "general.yaml")
+    cluster_configs = _load_clusters(path / "clusters")
 
-    logger.info(
-        f'Loaded cluster configurations {", ".join(user_config.cluster_configs.keys())}.'
-    )
+    logger.info(f"Loaded cluster configurations: {', '.join(cluster_configs) or '(none)'}.")
     return Config(
-        general_config=general_config, cluster_configs=user_config.cluster_configs
+        local_path=local_path,
+        cluster_configs=cluster_configs,
+        default_cluster=default_cluster,
     )
 
 
-def default_cluster_and_partition(user_path: Path | None = None) -> Tuple[str, str]:
-    """
-    :param user_path:
-    :return: default cluster and partition. The values should be specified in "~/slurmpilot/general.yaml" for
-    `default_cluster` and the default partition should be specified in the cluster config with
-    "~/slurmpilot/configs/{default_cluster}.yaml". Alternatively, one can also specify the default cluster with the
-    environment variable "SP_DEFAULT_CLUSTER".
-    """
-    # We have a couple of options, we could
-    # 1) load the configuration and take the first cluster (assuming it has a default partition field)
-    # 2) load an environment variable DEFAULT_CLUSTER
-    config = load_config(user_path=user_path)
+def default_cluster_and_partition(config: Config | None = None) -> tuple[str, str]:
+    """Return ``(cluster, partition)`` from config or the ``SP_DEFAULT_CLUSTER`` env var.
 
-    if "SP_DEFAULT_CLUSTER" in os.environ:
-        cluster = os.getenv("SP_DEFAULT_CLUSTER")
-        assert cluster in config.cluster_configs
-        # TODO add partition to cluster config
-        partition = config.cluster_configs[cluster].default_partition
-    else:
-        cluster = config.general_config.default_cluster
-        assert cluster is not None, (
-            "To be able to use a default cluster, you need to set the environment variable $SP_DEFAULT_CLUSTER to the "
-            "desired cluster or alternatively to add `default_cluster` to general.yaml"
+    Resolution order:
+    1. ``SP_DEFAULT_CLUSTER`` environment variable (cluster must exist in config).
+    2. ``config.default_cluster``.
+
+    The chosen cluster must have ``default_partition`` set in its :class:`ClusterConfig`.
+    """
+    if config is None:
+        config = load_config()
+    cluster = os.environ.get("SP_DEFAULT_CLUSTER") or config.default_cluster
+    if cluster is None:
+        raise ValueError(
+            "No default cluster configured. Set the SP_DEFAULT_CLUSTER environment "
+            "variable or pass default_cluster to Config."
         )
-        partition = config.cluster_configs[cluster].default_partition
-
-    assert (
-        partition is not None
-    ), f"Cannot use default cluster {cluster} without default partition, provide it in {cluster}.yaml"
+    if cluster not in config.cluster_configs:
+        raise ValueError(
+            f"Default cluster '{cluster}' not found in config. "
+            f"Available clusters: {list(config.cluster_configs)}"
+        )
+    partition = config.cluster_configs[cluster].default_partition
+    if partition is None:
+        raise ValueError(
+            f"Cluster '{cluster}' has no default_partition set in its ClusterConfig."
+        )
     return cluster, partition
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+def _load_yaml(path: Path) -> dict:
+    with open(path) as f:
+        return yaml.safe_load(f) or {}
+
+
+def _load_general(path: Path) -> tuple[str | None, str | None]:
+    """Return (local_path, default_cluster) from general.yaml, or (None, None) if missing."""
+    if not path.exists():
+        return None, None
+    data = _load_yaml(path)
+    local_path = data.get("local_path")
+    if local_path is not None:
+        local_path = str(Path(local_path).expanduser())
+    return local_path, data.get("default_cluster")
+
+
+def _load_clusters(clusters_dir: Path) -> dict[str, ClusterConfig]:
+    if not clusters_dir.exists():
+        return {}
+    configs = {}
+    for yaml_path in sorted(clusters_dir.rglob("*.yaml")):
+        name = yaml_path.stem
+        try:
+            configs[name] = ClusterConfig(**_load_yaml(yaml_path))
+        except TypeError as e:
+            raise ValueError(f"Invalid cluster config {yaml_path}: {e}")
+    return configs
