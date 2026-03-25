@@ -12,17 +12,25 @@ Job commands (all take an optional positional jobname, default = latest job):
 
 Cluster commands:
   list-jobs     Print a table of recent jobs
+
+Launch command:
+  launch        Build and submit a job from a YAML config and/or CLI flags
 """
 import argparse
 import sys
+from dataclasses import fields as dc_fields
 from pathlib import Path
 
+import yaml
+
 from .config import Config, load_config
+from .job_creation_info import JobCreationInfo
 from .job_metadata import JobMetadata, list_metadatas
 from .job_path import JobPath
-from .slurmpilot import SlurmPilot
+from .slurm_script import generate_slurm_script
+from .slurmpilot import LOCAL_CLUSTER, MOCK_CLUSTER, SlurmPilot
 from .slurmpilot_logging import _cluster, _jobname
-from .util import parse_elapsed_minutes
+from .util import parse_elapsed_minutes, unify
 
 _STATUS_EMOJI = {
     "COMPLETED":     "✅",
@@ -230,6 +238,128 @@ def cmd_slurm_script(args: argparse.Namespace, config: Config) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Launch
+# ---------------------------------------------------------------------------
+
+# Fields of JobCreationInfo that can be set via CLI flags (all optional).
+_LAUNCH_FIELDS: list[tuple[str, type, str]] = [
+    ("--cluster",              str,  "Target cluster"),
+    ("--partition",            str,  "Slurm partition"),
+    ("--entrypoint",           str,  "Script to run (relative to src-dir)"),
+    ("--src-dir",              str,  "Local directory to ship (default: dir of YAML or cwd)"),
+    ("--jobname",              str,  "Job name (default: auto-generated from entrypoint)"),
+    ("--python-binary",        str,  "Python interpreter"),
+    ("--python-args",          str,  "Arguments forwarded to the entrypoint (string)"),
+    ("--bash-setup-command",   str,  "Shell command run before the entrypoint"),
+    ("--n-cpus",               int,  "CPUs per task"),
+    ("--n-gpus",               int,  "GPUs per node"),
+    ("--mem",                  int,  "Memory per node in MB"),
+    ("--max-runtime-minutes",  int,  "Wall-clock time limit in minutes"),
+    ("--account",              str,  "Slurm account"),
+    ("--n-concurrent-jobs",    int,  "Max concurrent tasks in a job array"),
+]
+
+
+def _load_launch_yaml(path: Path) -> dict:
+    """Load a launch YAML, resolving relative paths against the YAML's directory."""
+    with open(path) as f:
+        data = yaml.safe_load(f) or {}
+    yaml_dir = path.parent
+    # src_dir defaults to the directory that contains the YAML file
+    if "src_dir" not in data:
+        data["src_dir"] = str(yaml_dir)
+    elif not Path(data["src_dir"]).is_absolute():
+        data["src_dir"] = str(yaml_dir / data["src_dir"])
+    return data
+
+
+def _build_job_info(args: argparse.Namespace) -> JobCreationInfo:
+    """Merge YAML config (if any) with CLI flags to produce a JobCreationInfo.
+
+    Resolution order: defaults < YAML < CLI flags.
+    """
+    data: dict = {}
+
+    if args.config:
+        data = _load_launch_yaml(Path(args.config))
+
+    # CLI flag names are hyphenated; JobCreationInfo uses underscores.
+    for flag, *_ in _LAUNCH_FIELDS:
+        dest = flag.lstrip("-").replace("-", "_")
+        val = getattr(args, dest, None)
+        if val is not None:
+            data[dest] = val
+
+    # src_dir: fall back to cwd when neither YAML nor flag provided
+    if "src_dir" not in data:
+        data["src_dir"] = str(Path.cwd())
+
+    # Auto-generate jobname from entrypoint stem if not provided
+    if "jobname" not in data or not data["jobname"]:
+        entrypoint = data.get("entrypoint", "job")
+        data["jobname"] = unify(Path(entrypoint).stem, method="coolname")
+
+    required = {"cluster", "entrypoint"}
+    missing = required - data.keys()
+    if missing:
+        print(f"Error: missing required field(s): {', '.join(sorted(missing))}", file=sys.stderr)
+        sys.exit(1)
+
+    # Strip keys not recognised by JobCreationInfo
+    valid = {f.name for f in dc_fields(JobCreationInfo)}
+    data = {k: v for k, v in data.items() if k in valid}
+
+    return JobCreationInfo(**data)
+
+
+def cmd_launch(args: argparse.Namespace, config: Config) -> None:
+    job_info = _build_job_info(args)
+
+    sp = SlurmPilot(config=config, clusters=[job_info.cluster])
+
+    if args.dry_run:
+        job_info.check_path()
+        # Generate the script without writing any files, using a temp-like path stub
+        local = JobPath(
+            jobname=job_info.jobname,
+            root=config.local_slurmpilot_path(),
+            src_dir_name=Path(job_info.src_dir).resolve().name,
+        )
+        if job_info.cluster in (MOCK_CLUSTER, LOCAL_CLUSTER):
+            job_run_dir = local.job_dir
+        else:
+            job_run_dir = JobPath(
+                jobname=job_info.jobname,
+                root=config.remote_slurmpilot_path(job_info.cluster),
+            ).job_dir
+        script = generate_slurm_script(
+            job_info=job_info,
+            entrypoint_from_cwd=local.entrypoint_from_cwd(job_info.entrypoint),
+            job_run_dir=job_run_dir,
+        )
+        print(f"# dry-run — job would be submitted as: {_jobname(job_info.jobname)}")
+        print(f"# cluster : {_cluster(job_info.cluster)}")
+        print(f"# src_dir : {job_info.src_dir}")
+        print()
+        print(script, end="")
+        return
+
+    sp.schedule_job(job_info)
+
+    if args.wait:
+        print(f"Waiting for {_jobname(job_info.jobname)} to complete…")
+        final_state = sp.wait_completion(job_info.jobname, max_seconds=args.max_wait_seconds)
+        print(f"\nFinal status: {_status_str(final_state)}")
+        stdout, stderr = sp.log(job_info.jobname)
+        if stdout:
+            print("\n── stdout ──")
+            print(stdout, end="")
+        if stderr:
+            print("\n── stderr ──", file=sys.stderr)
+            print(stderr, end="", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
 # Wiring
 # ---------------------------------------------------------------------------
 
@@ -252,6 +382,7 @@ _DESCRIPTIONS = {
     "path": "Show local (and remote) path of a job",
     "slurm-script": "Print the generated Slurm script for a job",
     "list-jobs": "Print a table of recent jobs",
+    "launch": "Build and submit a job from a YAML config and/or CLI flags",
 }
 
 
@@ -277,6 +408,18 @@ def main(config: Config | None = None) -> None:
     p.add_argument("--clusters", "--cluster", dest="clusters", nargs="+", default=None,
                    metavar="CLUSTER", help="Cluster(s) to stop (defaults to all)")
 
+    p = subparsers.add_parser("launch", help=_DESCRIPTIONS["launch"])
+    p.add_argument("--config", metavar="YAML", default=None,
+                   help="Path to a job YAML config file")
+    for flag, typ, helptext in _LAUNCH_FIELDS:
+        p.add_argument(flag, type=typ, default=None, help=f"{helptext} (overrides YAML)")
+    p.add_argument("--wait", action="store_true",
+                   help="Block until the job completes and print its logs")
+    p.add_argument("--max-wait-seconds", type=int, default=86400, dest="max_wait_seconds",
+                   metavar="N", help="Timeout for --wait in seconds (default: 86400)")
+    p.add_argument("--dry-run", action="store_true", dest="dry_run",
+                   help="Print the generated Slurm script without submitting")
+
     args = parser.parse_args()
     if config is None:
         config = load_config()
@@ -286,6 +429,8 @@ def main(config: Config | None = None) -> None:
         cmd_test_ssh(args, config)
     elif args.command == "stop-all":
         cmd_stop_all(args, config)
+    elif args.command == "launch":
+        cmd_launch(args, config)
     else:
         _COMMANDS[args.command](args, config)
 
