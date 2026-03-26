@@ -257,6 +257,7 @@ _LAUNCH_FIELDS: list[tuple[str, type, str]] = [
     ("--max-runtime-minutes",  int,  "Wall-clock time limit in minutes"),
     ("--account",              str,  "Slurm account"),
     ("--n-concurrent-jobs",    int,  "Max concurrent tasks in a job array"),
+    ("--remote-path",          str,  "Override remote slurmpilot root for this job"),
 ]
 
 
@@ -294,8 +295,12 @@ def _build_job_info(args: argparse.Namespace) -> JobCreationInfo:
     if "src_dir" not in data:
         data["src_dir"] = str(Path.cwd())
 
-    # Auto-generate jobname from entrypoint stem if not provided
-    if "jobname" not in data or not data["jobname"]:
+    # Apply jobname_method: unify(jobname, method=...) — supports "date", "coolname", "ascii"
+    jobname_method = data.pop("jobname_method", None) or getattr(args, "jobname_method", None)
+    if jobname_method:
+        base = data.get("jobname") or Path(data.get("entrypoint", "job")).stem
+        data["jobname"] = unify(base, method=jobname_method)
+    elif "jobname" not in data or not data["jobname"]:
         entrypoint = data.get("entrypoint", "job")
         data["jobname"] = unify(Path(entrypoint).stem, method="coolname")
 
@@ -419,6 +424,9 @@ def main(config: Config | None = None) -> None:
                    metavar="N", help="Timeout for --wait in seconds (default: 86400)")
     p.add_argument("--dry-run", action="store_true", dest="dry_run",
                    help="Print the generated Slurm script without submitting")
+    p.add_argument("--jobname-method", dest="jobname_method", default=None,
+                   choices=["date", "coolname", "ascii"],
+                   help="Append a unique suffix to jobname: date=timestamp, coolname=random words")
 
     args = parser.parse_args()
     if config is None:

@@ -10,9 +10,13 @@ class JobMetadata:
     jobname: str
     cluster: str
     date: str
+    remote_path: str | None = None
 
     def to_json(self) -> str:
-        return json.dumps({"jobname": self.jobname, "cluster": self.cluster, "date": self.date})
+        d = {"jobname": self.jobname, "cluster": self.cluster, "date": self.date}
+        if self.remote_path is not None:
+            d["remote_path"] = self.remote_path
+        return json.dumps(d)
 
     @classmethod
     def from_json(cls, s: str) -> "JobMetadata":
@@ -20,7 +24,12 @@ class JobMetadata:
         # Support legacy format: jobname nested inside job_creation_info
         if "jobname" not in data and "job_creation_info" in data:
             data["jobname"] = data["job_creation_info"]["jobname"]
-        return cls(jobname=data["jobname"], cluster=data["cluster"], date=data["date"])
+        return cls(
+            jobname=data["jobname"],
+            cluster=data["cluster"],
+            date=data["date"],
+            remote_path=data.get("remote_path"),
+        )
 
 
 def list_metadatas(jobs_root: Path) -> list["JobMetadata"]:

@@ -263,3 +263,60 @@ def test_cmd_list_jobs_no_jobs(config, capsys):
     args = argparse.Namespace(n=10, clusters=None, collapse_job_array=False)
     cmd_list_jobs(args, config)
     assert "No jobs found" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
+# launch — remote_path
+# ---------------------------------------------------------------------------
+
+def test_launch_yaml_remote_path_parsed(tmp_path):
+    """remote_path in YAML is propagated to JobCreationInfo."""
+    from slurmpilot.cli import _build_job_info
+
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "run.sh").write_text("#!/bin/bash\necho hi\n")
+
+    yaml_file = tmp_path / "job.yaml"
+    yaml_file.write_text(
+        f"cluster: mock\n"
+        f"entrypoint: run.sh\n"
+        f"jobname: test-job\n"
+        f"src_dir: {src}\n"
+        f"remote_path: /custom/remote/root\n"
+    )
+
+    args = argparse.Namespace(
+        config=str(yaml_file),
+        jobname_method=None,
+        **{flag.lstrip("-").replace("-", "_"): None for flag, *_ in __import__("slurmpilot.cli", fromlist=["_LAUNCH_FIELDS"])._LAUNCH_FIELDS},
+    )
+    job_info = _build_job_info(args)
+    assert job_info.remote_path == "/custom/remote/root"
+
+
+def test_launch_cli_remote_path_overrides_yaml(tmp_path):
+    """--remote-path CLI flag overrides the value from YAML."""
+    from slurmpilot.cli import _build_job_info, _LAUNCH_FIELDS
+
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "run.sh").write_text("#!/bin/bash\necho hi\n")
+
+    yaml_file = tmp_path / "job.yaml"
+    yaml_file.write_text(
+        f"cluster: mock\n"
+        f"entrypoint: run.sh\n"
+        f"jobname: test-job\n"
+        f"src_dir: {src}\n"
+        f"remote_path: /yaml/root\n"
+    )
+
+    args = argparse.Namespace(
+        config=str(yaml_file),
+        jobname_method=None,
+        remote_path="/cli/override",
+        **{flag.lstrip("-").replace("-", "_"): None for flag, *_ in _LAUNCH_FIELDS if flag != "--remote-path"},
+    )
+    job_info = _build_job_info(args)
+    assert job_info.remote_path == "/cli/override"
