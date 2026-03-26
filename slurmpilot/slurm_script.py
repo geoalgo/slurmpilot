@@ -51,6 +51,8 @@ def _write_preamble(f: io.StringIO, job_info: JobCreationInfo) -> None:
         sbatch(f"--account={job_info.account}")
     if job_info.max_runtime_minutes:
         sbatch(f"--time={job_info.max_runtime_minutes}")
+    if job_info.sbatch_arguments:
+        f.write(f"#SBATCH {job_info.sbatch_arguments}\n")
 
 
 def _write_body(
@@ -59,6 +61,10 @@ def _write_body(
     entrypoint_from_cwd: Path,
     job_run_dir: Path | None,
 ) -> None:
+    if job_info.env:
+        for key, value in job_info.env.items():
+            f.write(f"export {key}={value}\n")
+
     if job_info.bash_setup_command:
         f.write(job_info.bash_setup_command + "\n")
 

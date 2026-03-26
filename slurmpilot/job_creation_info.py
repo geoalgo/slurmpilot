@@ -42,6 +42,7 @@ class JobCreationInfo:
     account: str | None = None
     env: dict | None = None
     sbatch_arguments: str | None = None
+    remote_path: str | None = None
 
     def __post_init__(self):
         if self.src_dir is None:

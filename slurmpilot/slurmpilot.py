@@ -108,7 +108,7 @@ class SlurmPilot:
                 lib_path = Path(lib)
                 shutil.copytree(src=lib_path, dst=local.job_dir / lib_path.name)
 
-        job_run_dir = self._job_run_dir(job_info.cluster, local)
+        job_run_dir = self._job_run_dir(job_info.cluster, local, job_info)
         script = generate_slurm_script(
             job_info=job_info,
             entrypoint_from_cwd=local.entrypoint_from_cwd(job_info.entrypoint),
@@ -120,6 +120,7 @@ class SlurmPilot:
                 jobname=job_info.jobname,
                 cluster=job_info.cluster,
                 date=str(datetime.now()),
+                remote_path=job_info.remote_path,
             ).to_json()
         )
 
@@ -163,13 +164,20 @@ class SlurmPilot:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _job_run_dir(self, cluster: str, local: JobPath) -> Path:
+    def _remote_root(self, job_info: JobCreationInfo) -> Path:
+        """Remote slurmpilot root for this job (job_info.remote_path overrides cluster config)."""
+        if job_info.remote_path:
+            return Path(job_info.remote_path)
+        return self.config.remote_slurmpilot_path(job_info.cluster)
+
+    def _job_run_dir(self, cluster: str, local: JobPath, job_info: JobCreationInfo | None = None) -> Path:
         """Working directory on the execution host embedded in the Slurm script."""
         if cluster in (MOCK_CLUSTER, LOCAL_CLUSTER):
             return local.job_dir
+        root = self._remote_root(job_info) if job_info else self.config.remote_slurmpilot_path(cluster)
         return JobPath(
             jobname=local.jobname,
-            root=self.config.remote_slurmpilot_path(cluster),
+            root=root,
         ).job_dir
 
     def _submit(self, job_info: JobCreationInfo, local: JobPath) -> int:
@@ -187,7 +195,7 @@ class SlurmPilot:
             # Upload the local job folder to the remote host first.
             remote = JobPath(
                 jobname=job_info.jobname,
-                root=self.config.remote_slurmpilot_path(cluster),
+                root=self._remote_root(job_info),
             )
             self._log.connecting(cluster)
             self._log.send_data(local.job_dir, cluster, remote.job_dir)
@@ -217,7 +225,7 @@ class SlurmPilot:
     def _download_logs(self, cluster: str, jobname: str, local: JobPath) -> None:
         remote = JobPath(
             jobname=jobname,
-            root=self.config.remote_slurmpilot_path(cluster),
+            root=self._remote_root_for_job(jobname, cluster),
         )
         try:
             self._connections[cluster].download_folder(remote.log_dir, local.log_dir.parent)
@@ -239,6 +247,13 @@ class SlurmPilot:
     def _read_cluster(self, jobname: str) -> str | None:
         meta = self._read_metadata(jobname)
         return meta.cluster if meta else None
+
+    def _remote_root_for_job(self, jobname: str, cluster: str) -> Path:
+        """Remote slurmpilot root for an existing job, using stored remote_path if present."""
+        meta = self._read_metadata(jobname)
+        if meta and meta.remote_path:
+            return Path(meta.remote_path)
+        return self.config.remote_slurmpilot_path(cluster)
 
     def sacct_info(self, jobnames: list[str]) -> list[dict]:
         """Return full sacct info for each jobname, batched by cluster.
@@ -366,7 +381,7 @@ class SlurmPilot:
         if cluster in (MOCK_CLUSTER, LOCAL_CLUSTER):
             return
         local = JobPath(jobname=jobname, root=self.config.local_slurmpilot_path())
-        remote = JobPath(jobname=jobname, root=self.config.remote_slurmpilot_path(cluster))
+        remote = JobPath(jobname=jobname, root=self._remote_root_for_job(jobname, cluster))
         self._connections[cluster].download_folder(remote.job_dir, local.job_dir.parent)
 
     def local_job_path(self, jobname: str) -> Path:
@@ -380,7 +395,7 @@ class SlurmPilot:
             return None
         return JobPath(
             jobname=jobname,
-            root=self.config.remote_slurmpilot_path(cluster),
+            root=self._remote_root_for_job(jobname, cluster),
         ).job_dir
 
     def wait_completion(self, jobname: str, max_seconds: int = 60) -> str | None:

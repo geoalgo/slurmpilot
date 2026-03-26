@@ -451,3 +451,84 @@ class TestJobArray:
         slurm = SlurmPilot(config=make_config(tmp_path), clusters=["mock"])
         with pytest.raises(AssertionError, match="n_concurrent_jobs"):
             slurm.schedule_job(job)
+
+
+# ---------------------------------------------------------------------------
+# remote_path override
+# ---------------------------------------------------------------------------
+
+class TestRemotePath:
+    def test_remote_root_uses_job_remote_path(self, tmp_path):
+        """_remote_root returns job_info.remote_path when set."""
+        slurm = SlurmPilot(config=make_config(tmp_path), clusters=["mock"])
+        src = make_bash_src(tmp_path / "src")
+        job = JobCreationInfo(
+            jobname="rjob",
+            entrypoint="main.sh",
+            src_dir=str(src),
+            cluster="mock",
+            remote_path="/custom/remote/root",
+        )
+        root = slurm._remote_root(job)
+        assert root == Path("/custom/remote/root")
+
+    def test_remote_root_falls_back_to_cluster_config(self, tmp_path):
+        """_remote_root falls back to cluster config when remote_path is None."""
+        from slurmpilot.config import ClusterConfig
+        config = Config(
+            local_path=tmp_path,
+            cluster_configs={"mycluster": ClusterConfig(host="h", remote_path="/cluster/default")},
+        )
+        slurm = SlurmPilot(config=config, clusters=["mock"])
+        src = make_bash_src(tmp_path / "src")
+        job = JobCreationInfo(
+            jobname="rjob",
+            entrypoint="main.sh",
+            src_dir=str(src),
+            cluster="mycluster",
+        )
+        root = slurm._remote_root(job)
+        assert root == Path("/cluster/default")
+
+    def test_job_run_dir_uses_remote_path(self, tmp_path):
+        """_job_run_dir embeds remote_path into the script working directory."""
+        from slurmpilot.config import ClusterConfig
+        config = Config(
+            local_path=tmp_path,
+            cluster_configs={"mycluster": ClusterConfig(host="h", remote_path="/default")},
+        )
+        slurm = SlurmPilot(config=config, clusters=["mock"])
+        src = make_bash_src(tmp_path / "src")
+        job = JobCreationInfo(
+            jobname="myjob",
+            entrypoint="main.sh",
+            src_dir=str(src),
+            cluster="mycluster",
+            remote_path="/custom/root",
+        )
+        from slurmpilot.job_path import JobPath
+        local = JobPath(jobname="myjob", root=config.local_slurmpilot_path())
+        run_dir = slurm._job_run_dir("mycluster", local, job)
+        assert str(run_dir).startswith("/custom/root")
+
+    def test_slurm_script_pythonpath_uses_remote_path(self, tmp_path):
+        """For Python jobs, PYTHONPATH in the slurm script reflects remote_path."""
+        from slurmpilot.config import ClusterConfig
+        config = Config(
+            local_path=tmp_path,
+            cluster_configs={"mycluster": ClusterConfig(host="h", remote_path="/default")},
+        )
+        slurm = SlurmPilot(config=config, clusters=["mock"])
+        src = make_python_src(tmp_path / "src")
+        job = JobCreationInfo(
+            jobname="myjob",
+            entrypoint="main.py",
+            src_dir=str(src),
+            cluster="mycluster",
+            python_binary=sys.executable,
+            remote_path="/custom/root",
+        )
+        slurm.schedule_job(job, dryrun=True)
+        script = (tmp_path / "jobs" / "myjob" / "slurm_script.sh").read_text()
+        assert "PYTHONPATH" in script
+        assert "/custom/root" in script
