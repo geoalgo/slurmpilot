@@ -270,6 +270,38 @@ def test_cmd_list_jobs_no_jobs(config, capsys):
 # launch — remote_path
 # ---------------------------------------------------------------------------
 
+def test_launch_yaml_python_libraries_resolved_relative_to_yaml(tmp_path):
+    """python_libraries relative paths in YAML are resolved against the YAML file's directory."""
+    from slurmpilot.cli import _build_job_info, _LAUNCH_FIELDS
+
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "run.py").write_text("print('hi')\n")
+
+    lib = tmp_path / "mylib"
+    lib.mkdir()
+    (lib / "__init__.py").write_text("")
+
+    yaml_file = tmp_path / "job.yaml"
+    yaml_file.write_text(
+        f"cluster: mock\n"
+        f"entrypoint: run.py\n"
+        f"jobname: test-job\n"
+        f"src_dir: src\n"
+        f"python_binary: python3\n"
+        f"python_libraries:\n"
+        f"  - mylib\n"
+    )
+
+    args = argparse.Namespace(
+        config=str(yaml_file),
+        jobname_method=None,
+        **{flag.lstrip("-").replace("-", "_"): None for flag, *_ in _LAUNCH_FIELDS},
+    )
+    job_info = _build_job_info(args)
+    assert job_info.python_libraries == [str(tmp_path / "mylib")]
+
+
 def test_launch_yaml_remote_path_parsed(tmp_path):
     """remote_path in YAML is propagated to JobCreationInfo."""
     from slurmpilot.cli import _build_job_info

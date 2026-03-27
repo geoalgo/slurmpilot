@@ -293,6 +293,12 @@ def _load_launch_yaml(path: Path) -> dict:
         data["src_dir"] = str(yaml_dir)
     elif not Path(data["src_dir"]).is_absolute():
         data["src_dir"] = str(yaml_dir / data["src_dir"])
+    # python_libraries paths are also resolved relative to the YAML file
+    if "python_libraries" in data:
+        data["python_libraries"] = [
+            str(yaml_dir / lib) if not Path(lib).is_absolute() else lib
+            for lib in data["python_libraries"]
+        ]
     return data
 
 
