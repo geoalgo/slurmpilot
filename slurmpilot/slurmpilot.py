@@ -553,7 +553,10 @@ def _call_sbatch(
         raise RuntimeError(f"sbatch failed:\n{result.stderr}")
     match = re.search(r"Submitted batch job (\d+)", result.stdout)
     if not match:
-        raise RuntimeError(f"Could not parse sbatch output: {result.stdout!r}")
+        details = result.stdout.strip() or "(no stdout)"
+        if result.stderr.strip():
+            details += f"\nstderr: {result.stderr.strip()}"
+        raise RuntimeError(f"Could not parse sbatch output:\n{details}")
     return int(match.group(1))
 
 
