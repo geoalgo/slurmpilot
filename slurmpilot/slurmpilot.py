@@ -491,7 +491,7 @@ class SlurmPilot:
         """
         jobid = self._read_jobid(jobname)
         cluster = self._read_cluster(jobname)
-        if jobid is None or cluster is None or cluster in (MOCK_CLUSTER, LOCAL_CLUSTER):
+        if jobid is None or cluster is None or cluster == MOCK_CLUSTER:
             return None
 
         connection = self._connections[cluster]

@@ -234,7 +234,7 @@ def cmd_queue_status(args: argparse.Namespace, config: Config) -> None:
 
     if pos is None:
         cluster = sp._read_cluster(jobname)
-        if cluster in ("mock", "local"):
+        if cluster == "mock":
             print(f"Queue status is not available for {_cluster(cluster)} clusters.")
         else:
             print("Job not found in the queue (may have already started or completed).")
