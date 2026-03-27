@@ -4,6 +4,7 @@ import re
 import shlex
 import shutil
 import time
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import List
@@ -27,6 +28,83 @@ LOCAL_CLUSTER = "local"
 SACCT_FORMAT = "JobID,Elapsed,start,State,nodelist"
 
 TERMINAL_STATES = frozenset({"COMPLETED", "FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_MEMORY"})
+
+
+@dataclass
+class QueuePosition:
+    """Position and priority of a pending job within its partition queue.
+
+    Attributes:
+        jobid: Slurm job id.
+        partition: The partition the job is queued in.
+        priority: This job's Slurm priority score, or None if not found in the queue.
+        position: 1-based rank among PENDING jobs sorted by priority (descending),
+                  or None if the job is not currently pending (e.g. already running).
+        total_pending: Total number of PENDING jobs in the partition.
+        top_priority: Priority score of the highest-priority pending job, or None if
+                      there are no pending jobs.
+    """
+
+    jobid: int
+    partition: str
+    priority: int | None
+    position: int | None
+    total_pending: int
+    top_priority: int | None
+
+
+def _parse_squeue_rows(output: str) -> list[dict]:
+    """Parse pipe-delimited squeue output into a list of row dicts.
+
+    Expected format (one line per job, no header)::
+
+        squeue -h -o "%i|%Q|%T"
+
+    Returns dicts with keys ``jobid`` (int), ``priority`` (int), ``state`` (str).
+    Lines that cannot be parsed are silently skipped.
+    """
+    rows = []
+    for line in output.strip().splitlines():
+        parts = line.strip().split("|")
+        if len(parts) < 3:
+            continue
+        try:
+            rows.append({
+                "jobid": int(parts[0].strip()),
+                "priority": int(parts[1].strip()),
+                "state": parts[2].strip(),
+            })
+        except ValueError:
+            continue
+    return rows
+
+
+def _compute_queue_position(jobid: int, partition: str, rows: list[dict]) -> QueuePosition:
+    """Derive a :class:`QueuePosition` from parsed squeue rows.
+
+    *rows* must already be sorted by priority descending (as returned by
+    ``squeue --sort=-Q``).  Only ``PENDING`` rows are considered for ranking.
+    """
+    pending = [r for r in rows if r["state"] == "PENDING"]
+    total_pending = len(pending)
+    top_priority = pending[0]["priority"] if pending else None
+
+    position: int | None = None
+    priority: int | None = None
+    for i, row in enumerate(pending):
+        if row["jobid"] == jobid:
+            position = i + 1
+            priority = row["priority"]
+            break
+
+    return QueuePosition(
+        jobid=jobid,
+        partition=partition,
+        priority=priority,
+        position=position,
+        total_pending=total_pending,
+        top_priority=top_priority,
+    )
 
 
 class SlurmPilot:
@@ -397,6 +475,42 @@ class SlurmPilot:
             jobname=jobname,
             root=self._remote_root_for_job(jobname, cluster),
         ).job_dir
+
+    def queue_position(self, jobname: str) -> QueuePosition | None:
+        """Return the queue position of a pending job within its partition.
+
+        Runs two ``squeue`` calls on the cluster:
+
+        1. ``squeue -j <jobid> -h -o "%P"`` — discover the partition.
+        2. ``squeue -p <partition> --sort=-Q -h -o "%i|%Q|%T"`` — list all jobs
+           sorted by priority (descending) and compute the rank.
+
+        Returns ``None`` for mock/local clusters or when the job cannot be found.
+        The ``position`` field of the returned object is ``None`` when the job
+        is no longer ``PENDING`` (e.g. it has started running or already finished).
+        """
+        jobid = self._read_jobid(jobname)
+        cluster = self._read_cluster(jobname)
+        if jobid is None or cluster is None or cluster in (MOCK_CLUSTER, LOCAL_CLUSTER):
+            return None
+
+        connection = self._connections[cluster]
+
+        # Step 1: find the partition this job is queued in.
+        result = connection.run(f'squeue -j {jobid} -h -o "%P"')
+        if result.failed or not result.stdout.strip():
+            logger.warning(f"squeue could not find job {jobid} on {cluster}")
+            return None
+        partition = result.stdout.strip().splitlines()[0].strip()
+
+        # Step 2: list all jobs in that partition sorted by priority descending.
+        result = connection.run(f'squeue -p {partition} --sort=-Q -h -o "%i|%Q|%T"')
+        if result.failed:
+            logger.warning(f"squeue failed on {cluster}: {result.stderr}")
+            return None
+
+        rows = _parse_squeue_rows(result.stdout)
+        return _compute_queue_position(jobid, partition, rows)
 
     def wait_completion(self, jobname: str, max_seconds: int = 60) -> str | None:
         """Poll until the job reaches a terminal state or ``max_seconds`` elapse.

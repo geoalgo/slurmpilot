@@ -210,6 +210,7 @@ All job commands accept an optional job name (defaults to the most recently subm
 | `sp slurm-script [JOBNAME]` | Print the generated Slurm script |
 | `sp download [JOBNAME]` | Download the job folder from the cluster |
 | `sp stop [JOBNAME]` | Cancel a running job |
+| `sp queue-status [JOBNAME]` | Show queue position and priority of a pending job |
 
 ### Cluster commands
 
@@ -220,6 +221,17 @@ All job commands accept an optional job name (defaults to the most recently subm
 | `sp stop-all [--clusters C …]` | Cancel all tracked jobs on cluster(s) |
 
 `--collapse-job-array` on `list-jobs` shows one row per job array instead of one per task.
+
+`sp queue-status` runs two `squeue` calls on the remote cluster and reports the job's priority score, its rank among all `PENDING` jobs in the same partition, and the top priority score in that partition:
+
+```
+job       : my-experiment (id: 17026264)
+partition : small-g
+priority  : 5000  (top is 9999)
+position  : 3 / 42 pending jobs
+```
+
+Returns a "not pending" message when the job has already started running or completed.
 
 ### Launch command
 

@@ -28,7 +28,7 @@ from .job_creation_info import JobCreationInfo
 from .job_metadata import JobMetadata, list_metadatas
 from .job_path import JobPath
 from .slurm_script import generate_slurm_script
-from .slurmpilot import LOCAL_CLUSTER, MOCK_CLUSTER, SlurmPilot
+from .slurmpilot import LOCAL_CLUSTER, MOCK_CLUSTER, QueuePosition, SlurmPilot
 from .slurmpilot_logging import _cluster, _jobname
 from .util import parse_elapsed_minutes, unify
 
@@ -228,6 +228,28 @@ def cmd_stop_all(args: argparse.Namespace, config: Config) -> None:
         print(f"\n{len(cancelled)} job(s) stopped.")
 
 
+def cmd_queue_status(args: argparse.Namespace, config: Config) -> None:
+    sp, jobname = _make_sp(args.jobname, config)
+    pos = sp.queue_position(jobname)
+
+    if pos is None:
+        cluster = sp._read_cluster(jobname)
+        if cluster in ("mock", "local"):
+            print(f"Queue status is not available for {_cluster(cluster)} clusters.")
+        else:
+            print("Job not found in the queue (may have already started or completed).")
+        return
+
+    priority_str = str(pos.priority) if pos.priority is not None else "n/a"
+    top_str = str(pos.top_priority) if pos.top_priority is not None else "n/a"
+    position_str = f"{pos.position} / {pos.total_pending}" if pos.position is not None else f"not pending ({pos.total_pending} other pending jobs)"
+
+    print(f"job       : {_jobname(jobname)} (id: {pos.jobid})")
+    print(f"partition : {pos.partition}")
+    print(f"priority  : {priority_str}  (top is {top_str})")
+    print(f"position  : {position_str}")
+
+
 def cmd_slurm_script(args: argparse.Namespace, config: Config) -> None:
     meta = _resolve_jobname(args.jobname, config)
     jp = JobPath(jobname=meta.jobname, root=config.local_slurmpilot_path())
@@ -376,6 +398,7 @@ _COMMANDS = {
     "stop": cmd_stop,
     "path": cmd_path,
     "slurm-script": cmd_slurm_script,
+    "queue-status": cmd_queue_status,
 }
 
 _DESCRIPTIONS = {
@@ -386,6 +409,7 @@ _DESCRIPTIONS = {
     "stop": "Cancel a running job",
     "path": "Show local (and remote) path of a job",
     "slurm-script": "Print the generated Slurm script for a job",
+    "queue-status": "Show position and priority of a pending job in the Slurm queue",
     "list-jobs": "Print a table of recent jobs",
     "launch": "Build and submit a job from a YAML config and/or CLI flags",
 }
