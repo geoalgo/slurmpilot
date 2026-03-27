@@ -12,6 +12,7 @@ from slurmpilot.cli import (
     cmd_log,
     cmd_metadata,
     cmd_path,
+    cmd_queue_status,
     cmd_slurm_script,
     cmd_status,
     cmd_stop,
@@ -293,6 +294,59 @@ def test_launch_yaml_remote_path_parsed(tmp_path):
     )
     job_info = _build_job_info(args)
     assert job_info.remote_path == "/custom/remote/root"
+
+
+# ---------------------------------------------------------------------------
+# queue-status
+# ---------------------------------------------------------------------------
+
+def test_cmd_queue_status_pending(job, config, capsys):
+    from slurmpilot.slurmpilot import QueuePosition
+    pos = QueuePosition(jobid=JOBID, partition="gpu", priority=5000, position=3, total_pending=10, top_priority=9999)
+    sp = _mock_sp()
+    sp._read_cluster.return_value = "bigcluster"
+    sp.queue_position.return_value = pos
+    with patch("slurmpilot.cli._make_sp", return_value=(sp, JOBNAME)):
+        cmd_queue_status(_args(), config)
+    out = capsys.readouterr().out
+    assert "3 / 10" in out
+    assert "5000" in out
+    assert "9999" in out
+    assert "gpu" in out
+
+
+def test_cmd_queue_status_not_pending(job, config, capsys):
+    from slurmpilot.slurmpilot import QueuePosition
+    # position=None means the job is no longer in the PENDING list
+    pos = QueuePosition(jobid=JOBID, partition="gpu", priority=None, position=None, total_pending=5, top_priority=9000)
+    sp = _mock_sp()
+    sp._read_cluster.return_value = "bigcluster"
+    sp.queue_position.return_value = pos
+    with patch("slurmpilot.cli._make_sp", return_value=(sp, JOBNAME)):
+        cmd_queue_status(_args(), config)
+    out = capsys.readouterr().out
+    assert "not pending" in out
+    assert "5" in out
+
+
+def test_cmd_queue_status_not_found(job, config, capsys):
+    sp = _mock_sp()
+    sp._read_cluster.return_value = "bigcluster"
+    sp.queue_position.return_value = None
+    with patch("slurmpilot.cli._make_sp", return_value=(sp, JOBNAME)):
+        cmd_queue_status(_args(), config)
+    out = capsys.readouterr().out
+    assert "not found" in out or "completed" in out.lower() or "started" in out.lower()
+
+
+def test_cmd_queue_status_mock_cluster(job, config, capsys):
+    sp = _mock_sp()
+    sp._read_cluster.return_value = "mock"
+    sp.queue_position.return_value = None
+    with patch("slurmpilot.cli._make_sp", return_value=(sp, JOBNAME)):
+        cmd_queue_status(_args(), config)
+    out = capsys.readouterr().out
+    assert "not available" in out
 
 
 def test_launch_cli_remote_path_overrides_yaml(tmp_path):
