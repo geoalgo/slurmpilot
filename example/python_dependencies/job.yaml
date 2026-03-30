@@ -1,0 +1,16 @@
+cluster: YOUR_CLUSTER       # replace with your cluster name (or "mock" / "local")
+partition: YOUR_PARTITION   # replace with your partition name
+
+jobname: examples/custom-library/job
+entrypoint: main_using_custom_library.py
+src_dir: script
+python_binary: python3
+python_libraries:
+  - custom_library
+python_args:
+  - "--learning-rate 0.01"
+  - "--learning-rate 0.02"
+n_cpus: 1
+max_runtime_minutes: 60
+env:
+  API_TOKEN: DUMMY
