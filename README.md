@@ -15,7 +15,7 @@
 
 ## 🤔 Why Slurmpilot?
 
-While tools like [SkyPilot](https://github.com/skypilot-org/skypilot) and [Submitit](https://github.com/facebookincubator/submitit) are excellent, Slurmpilot offers a more flexible, multi-cluster experience tailored for academic research environments where Docker might not be available. We focus on sending source files directly, avoiding serialization issues and providing a seamless CLI for managing your experiments.
+Slurmpilot is designed for academic research environments: multi-cluster support, no Docker requirement, source files sent directly, and a CLI-first workflow for managing experiments.
 
 ## ✨ Core Features
 
@@ -30,7 +30,13 @@ While tools like [SkyPilot](https://github.com/skypilot-org/skypilot) and [Submi
 
 ### 1. Installation
 
-Clone and install in editable mode:
+Install from PyPI:
+
+```bash
+pip install slurmpilot
+```
+
+Or clone and install in editable mode:
 
 ```bash
 git clone https://github.com/geoalgo/slurmpilot.git
@@ -84,7 +90,7 @@ job_info = JobCreationInfo(
     partition="gpu",
     jobname=unify("hellocluster", method="date"),
     entrypoint="hellocluster_script.sh",
-    src_dir="example/hellocluster",
+    src_dir="example/hellocluster",  # see example/hellocluster/ for a full working example
     n_cpus=4,
     n_gpus=1,
     max_runtime_minutes=60,
@@ -137,7 +143,7 @@ slurm.wait_completion(job_info.jobname, max_seconds=30)
 stdout, stderr = slurm.log(job_info.jobname)
 ```
 
-`sacct` returns `RUNNING` while the process is alive, then `COMPLETED` / `FAILED` / `CANCELLED` based on its exit code. No cluster config file is needed.
+Status is emulated by Slurmpilot: `RUNNING` while the process is alive, then `COMPLETED` / `FAILED` / `CANCELLED` based on its exit code. No cluster config file is needed.
 
 ### Python entrypoints
 
@@ -151,12 +157,15 @@ job_info = JobCreationInfo(
     partition="YOURPARTITION",
     jobname=unify("python-job", method="date"),
     entrypoint="main.py",
-    python_binary="~/miniconda3/bin/python",
+    python_binary="~/miniconda3/bin/python",  # use a full path to your venv's python binary
     python_args="--data /path/to/data --epochs 10",
     n_cpus=2,
     n_gpus=1,
     mem=16000,
-    env={"API_TOKEN": "your-token"},
+    env={
+        "API_TOKEN": "your-token",
+        "PYTHONUNBUFFERED": "1",  # flush stdout immediately so sp log shows output while the job runs
+    },
 )
 ```
 
@@ -209,7 +218,12 @@ python example/python_dependencies/launch_python_dependencies.py
 
 ## ⌨️ Command-Line Interface (CLI)
 
-All job commands accept an optional job name (defaults to the most recently submitted job).
+All job commands accept an optional job name. When omitted, the most recently submitted job is used — so after `sp launch`, you can just run `sp log`, `sp status`, etc. without typing the job name:
+
+```bash
+sp log my-experiment       # print logs for a specific job
+sp log                     # print logs for the last submitted job
+```
 
 ### Job commands
 
@@ -234,7 +248,7 @@ All job commands accept an optional job name (defaults to the most recently subm
 
 `--collapse-job-array` on `list-jobs` shows one row per job array instead of one per task.
 
-`sp queue-status` runs two `squeue` calls on the remote cluster and reports the job's priority score, its rank among all `PENDING` jobs in the same partition, and the top priority score in that partition:
+`sp queue-status` runs `squeue` and reports the job's priority score, its rank among all `PENDING` jobs in the same partition, and the top priority score in that partition. Note: this requires your account to have permission to query the full partition queue, which is not always the case on shared clusters.
 
 ```
 job       : my-experiment (id: 17026264)
@@ -274,11 +288,13 @@ cluster: mycluster
 partition: gpu
 entrypoint: train.py          # relative to the YAML file's directory
 
-python_binary: python
+python_binary: python3        # use a full path (e.g. ~/venv/bin/python) to target a specific venv
 python_args: "--epochs 10"
 n_cpus: 4
 n_gpus: 1
 max_runtime_minutes: 120
+env:
+  PYTHONUNBUFFERED: "1"       # flush stdout immediately so sp log shows output while the job runs
 ```
 
 For a job array, set `python_args` to a list:
@@ -291,7 +307,7 @@ python_args:
     batch: 16
 ```
 
-`jobname` is auto-generated from the entrypoint stem via coolname if not provided (e.g. `train-charming-swift-otter-of-justice`).
+`jobname` is auto-generated from the entrypoint stem via coolname if not provided (e.g. `train-charming-swift-otter-of-justice`). You can control this with `jobname_method: date` (appends a timestamp) or `jobname_method: coolname` (appends a random adjective-noun suffix).
 
 Example output from `sp list-jobs 5`:
 
@@ -339,7 +355,7 @@ To set up a development environment:
 ```bash
 git clone https://github.com/geoalgo/slurmpilot.git
 cd slurmpilot
-pip install -e ".[dev]"
+pip install -e ".[dev]"   # the [dev] extra installs test and lint dependencies
 ```
 
 Run tests:
@@ -383,4 +399,4 @@ Only `pyyaml` and `coolname` are required at runtime. No pandas, no numpy.
 
 **What about other tools?**
 
-[SkyPilot](https://github.com/skypilot-org/skypilot) is excellent for cloud providers. [Submitit](https://github.com/facebookincubator/submitit) is great for single-cluster Python-native workflows. Slurmpilot targets the multi-cluster academic use case: sending raw source files, no serialization, CLI-first management across clusters.
+While tools like [SkyPilot](https://github.com/skypilot-org/skypilot) and [Submitit](https://github.com/facebookincubator/submitit) are excellent, Slurmpilot offers a more flexible, multi-cluster experience tailored for academic research environments where Docker might not be available. We focus on sending source files directly, avoiding serialization issues and providing a seamless CLI for managing your experiments. SkyPilot excels for cloud providers; Submitit is great for single-cluster Python-native workflows. Slurmpilot targets the multi-cluster academic use case: sending raw source files, no serialization, CLI-first management across clusters.
