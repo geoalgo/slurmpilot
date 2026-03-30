@@ -169,7 +169,7 @@ class SlurmPilot:
         if local.job_dir.exists():
             raise ValueError(
                 f"Job '{job_info.jobname}' already exists at {local.job_dir}. "
-                "Jobnames must be unique."
+                "Jobnames must be unique. Use unify(jobname) to append a unique suffix automatically."
             )
 
         shutil.copytree(src=job_info.src_dir, dst=local.src)

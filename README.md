@@ -61,7 +61,7 @@ slurm = SlurmPilot(clusters=["local"])
 
 job_info = JobCreationInfo(
     cluster="local",
-    partition="gpu",
+    partition="YOURPARTITION",
     jobname=unify("hellocluster", method="date"),
     entrypoint="hellocluster_script.sh",
     src_dir="example/hellocluster",  
@@ -258,7 +258,7 @@ Returns a "not pending" message when the job has already started running or comp
 
 ```bash
 # Inline flags only
-sp launch --entrypoint main.py --cluster mycluster --partition gpu --n-gpus 1
+sp launch --entrypoint main.py --cluster mycluster --partition YOURPARTITION --n-gpus 1
 
 # From a YAML config (src_dir defaults to the YAML file's directory)
 sp launch --config job.yaml
@@ -278,7 +278,7 @@ A minimal `job.yaml`:
 
 ```yaml
 cluster: mycluster
-partition: gpu
+partition: YOURPARTITION
 entrypoint: train.py          # relative to the YAML file's directory
 
 python_binary: python3        # use a full path (e.g. ~/venv/bin/python) to target a specific venv
