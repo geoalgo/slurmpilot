@@ -1,16 +1,28 @@
 [project]
 name = "slurmpilot"
-version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
+version = "0.2.0"
+description = "A tool for launching and tracking Slurm jobs across many clusters in Python."
+license = "MIT"
+license-files = ["LICENSE.md"]
 authors = [
-    { email = "david.salinas.pro@gmail.com" }
+    {name = "David Salinas", email = "check@mywebsite.com"},
+]
+readme = "README.md"
+keywords = ["ML ops", "slurm", "experiment management"]
+classifiers = [
+    "Topic :: Scientific/Engineering",
+    "Programming Language :: Python :: 3",
 ]
 requires-python = ">=3.12"
 dependencies = [
     "pyyaml>=6.0.3",
     "coolname>=2.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/geoalgo/slurmpilot"
+Documentation = "https://github.com/geoalgo/slurmpilot"
+Repository = "https://github.com/geoalgo/slurmpilot.git"
 
 [project.optional-dependencies]
 dev = [
@@ -27,7 +39,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["slurmpilot*"]
+include = ["slurmpilot"]
 
 [project.scripts]
 sp = "slurmpilot.cli:main"
