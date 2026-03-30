@@ -44,32 +44,6 @@ cd slurmpilot
 pip install -e .
 ```
 
-### 2. Configure Your First Cluster
-
-In case you want to schedule job from your machine, you need to first configure ssh by
-creating a cluster config file at `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`:
-
-```yaml
-host: your-cluster-hostname
-user: your-username          # optional, defaults to current user
-remote_path: ~/slurmpilot    # optional, where files are stored on the cluster
-default_partition: gpu       # optional, used when partition is not specified
-account: your-account        # optional, Slurm account to charge
-```
-
-Optionally create `~/slurmpilot/config/general.yaml` for global settings:
-
-```yaml
-local_path: ~/slurmpilot        # where job files are stored locally
-default_cluster: YOUR_CLUSTER   # used when cluster is not specified
-```
-
-Verify your SSH connection:
-
-```bash
-sp test-ssh YOUR_CLUSTER
-```
-
 ## 💡 Usage Examples
 
 ### Running modes
@@ -90,7 +64,7 @@ job_info = JobCreationInfo(
     partition="gpu",
     jobname=unify("hellocluster", method="date"),
     entrypoint="hellocluster_script.sh",
-    src_dir="example/hellocluster",  # see example/hellocluster/ for a full working example
+    src_dir="example/hellocluster",  
     n_cpus=4,
     n_gpus=1,
     max_runtime_minutes=60,
@@ -100,11 +74,11 @@ job_id = slurm.schedule_job(job_info)
 print(f"Job {job_id} submitted")
 ```
 
-Job files are written to `~/slurmpilot/jobs/` locally.
+Job files are written to `~/slurmpilot/jobs/` locally, see [`example/hellocluster/`](example/hellocluster) for a full working example.
 
 #### SSH mode
 
-Use a named cluster (configured in `~/slurmpilot/config/clusters/`) to submit from your laptop. Slurmpilot syncs the source files and calls `sbatch` over SSH.
+Use a named cluster to submit from your laptop. Slurmpilot syncs the source files and calls `sbatch` over SSH.
 
 ```python
 slurm = SlurmPilot(clusters=["YOURCLUSTER"])
@@ -122,11 +96,30 @@ job_info = JobCreationInfo(
 job_id = slurm.schedule_job(job_info)
 ```
 
-`YOURCLUSTER` must be reachable — verify with `sp test-ssh YOURCLUSTER`.
+`YOURCLUSTER` must be reachable via SSH — verify with `sp test-ssh YOURCLUSTER`.
+
+If you want to configure a cluster, you can create the following config file `~/slurmpilot/config/clusters/YOUR_CLUSTER.yaml`:
+
+```yaml
+host: your-cluster-hostname
+user: your-username          # optional, defaults to current user
+remote_path: ~/slurmpilot    # optional, where files are stored on the cluster
+default_partition: gpu       # optional, used when partition is not specified
+account: your-account        # optional, Slurm account to charge
+```
+
+Optionally create `~/slurmpilot/config/general.yaml` for global settings:
+
+```yaml
+local_path: ~/slurmpilot        # where job files are stored locally
+default_cluster: YOUR_CLUSTER   # used when cluster is not specified
+```
 
 #### Mock mode
 
-Use `cluster="mock"` to run jobs as plain local processes — no Slurm installation required. The generated bash script is executed as a subprocess and its PID is used as the job ID. Only recommended for testing.
+Use `cluster="mock"` to run jobs as plain local processes — no Slurm installation required. 
+Slurm is then simulated, the generated bash script is executed as a subprocess and its PID is used as the job ID. 
+Only recommended for testing.
 
 ```python
 slurm = SlurmPilot(clusters=["mock"])
@@ -208,7 +201,7 @@ job_info = JobCreationInfo(
 )
 ```
 
-A working example is available in `example/python_dependencies/`. You can run it with:
+A working example is available in [`example/python_dependencies/`](example/python_dependencies). You can run it with:
 
 ```bash
 sp launch --config example/python_dependencies/job.yaml --cluster local --partition YOURPARTITION
@@ -259,7 +252,7 @@ position  : 3 / 42 pending jobs
 
 Returns a "not pending" message when the job has already started running or completed.
 
-### Launch command
+### Launching jobs from the CLI
 
 `sp launch` builds and submits a job from a YAML config file and/or inline CLI flags. CLI flags always override YAML values.
 
