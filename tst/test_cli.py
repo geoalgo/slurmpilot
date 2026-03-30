@@ -296,6 +296,7 @@ def test_launch_yaml_python_libraries_resolved_relative_to_yaml(tmp_path):
     args = argparse.Namespace(
         config=str(yaml_file),
         jobname_method=None,
+        python_libraries=None,
         **{flag.lstrip("-").replace("-", "_"): None for flag, *_ in _LAUNCH_FIELDS},
     )
     job_info = _build_job_info(args)
@@ -322,6 +323,7 @@ def test_launch_yaml_remote_path_parsed(tmp_path):
     args = argparse.Namespace(
         config=str(yaml_file),
         jobname_method=None,
+        python_libraries=None,
         **{flag.lstrip("-").replace("-", "_"): None for flag, *_ in __import__("slurmpilot.cli", fromlist=["_LAUNCH_FIELDS"])._LAUNCH_FIELDS},
     )
     job_info = _build_job_info(args)
@@ -402,7 +404,66 @@ def test_launch_cli_remote_path_overrides_yaml(tmp_path):
         config=str(yaml_file),
         jobname_method=None,
         remote_path="/cli/override",
+        python_libraries=None,
         **{flag.lstrip("-").replace("-", "_"): None for flag, *_ in _LAUNCH_FIELDS if flag != "--remote-path"},
     )
     job_info = _build_job_info(args)
     assert job_info.remote_path == "/cli/override"
+
+
+def test_launch_cli_python_libraries_overrides_yaml(tmp_path):
+    """--python-libraries CLI flag overrides the value from YAML."""
+    from slurmpilot.cli import _build_job_info, _LAUNCH_FIELDS
+
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "run.sh").write_text("#!/bin/bash\necho hi\n")
+
+    lib_yaml = tmp_path / "yaml_lib"
+    lib_yaml.mkdir()
+    lib_cli = tmp_path / "cli_lib"
+    lib_cli.mkdir()
+
+    yaml_file = tmp_path / "job.yaml"
+    yaml_file.write_text(
+        f"cluster: mock\n"
+        f"entrypoint: run.sh\n"
+        f"jobname: test-job\n"
+        f"src_dir: {src}\n"
+        f"python_libraries:\n"
+        f"  - {lib_yaml}\n"
+    )
+
+    args = argparse.Namespace(
+        config=str(yaml_file),
+        jobname_method=None,
+        python_libraries=["cli_lib"],
+        **{flag.lstrip("-").replace("-", "_"): None for flag, *_ in _LAUNCH_FIELDS},
+    )
+    job_info = _build_job_info(args)
+    # CLI value should override YAML; relative path resolved against YAML dir
+    assert job_info.python_libraries == [str(tmp_path / "cli_lib")]
+
+
+def test_launch_cli_python_libraries_no_yaml(tmp_path):
+    """--python-libraries works without a YAML config, resolved against cwd."""
+    from slurmpilot.cli import _build_job_info, _LAUNCH_FIELDS
+
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "run.sh").write_text("#!/bin/bash\necho hi\n")
+    lib = tmp_path / "mylib"
+    lib.mkdir()
+
+    field_defaults = {
+        flag.lstrip("-").replace("-", "_"): None for flag, *_ in _LAUNCH_FIELDS
+    }
+    field_defaults.update({"cluster": "mock", "entrypoint": "run.sh", "src_dir": str(src)})
+    args = argparse.Namespace(
+        config=None,
+        jobname_method=None,
+        python_libraries=[str(lib)],  # absolute path — no resolution needed
+        **field_defaults,
+    )
+    job_info = _build_job_info(args)
+    assert job_info.python_libraries == [str(lib)]

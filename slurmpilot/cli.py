@@ -28,7 +28,7 @@ from .job_creation_info import JobCreationInfo
 from .job_metadata import JobMetadata, list_metadatas
 from .job_path import JobPath
 from .slurm_script import generate_slurm_script
-from .slurmpilot import LOCAL_CLUSTER, MOCK_CLUSTER, QueuePosition, SlurmPilot
+from .slurmpilot import LOCAL_CLUSTER, MOCK_CLUSTER, SlurmPilot
 from .slurmpilot_logging import _cluster, _jobname
 from .util import parse_elapsed_minutes, unify
 
@@ -319,6 +319,15 @@ def _build_job_info(args: argparse.Namespace) -> JobCreationInfo:
         if val is not None:
             data[dest] = val
 
+    # python_libraries: CLI overrides YAML; resolve relative paths against YAML dir or cwd
+    cli_libs = getattr(args, "python_libraries", None)
+    if cli_libs is not None:
+        base_dir = Path(args.config).parent if args.config else Path.cwd()
+        data["python_libraries"] = [
+            str(base_dir / lib) if not Path(lib).is_absolute() else lib
+            for lib in cli_libs
+        ]
+
     # src_dir: fall back to cwd when neither YAML nor flag provided
     if "src_dir" not in data:
         data["src_dir"] = str(Path.cwd())
@@ -448,6 +457,9 @@ def main(config: Config | None = None) -> None:
                    help="Path to a job YAML config file")
     for flag, typ, helptext in _LAUNCH_FIELDS:
         p.add_argument(flag, type=typ, default=None, help=f"{helptext} (overrides YAML)")
+    p.add_argument("--python-libraries", dest="python_libraries", nargs="+", default=None,
+                   metavar="PATH",
+                   help="Local library directories to ship alongside the script (overrides YAML)")
     p.add_argument("--wait", action="store_true",
                    help="Block until the job completes and print its logs")
     p.add_argument("--max-wait-seconds", type=int, default=86400, dest="max_wait_seconds",
