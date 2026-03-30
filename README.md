@@ -19,11 +19,12 @@ While tools like [SkyPilot](https://github.com/skypilot-org/skypilot) and [Submi
 
 ## ✨ Core Features
 
-*   **💻 Remote Job Submission:** Launch Slurm jobs on any cluster with SSH access from your local machine.
+*   **💻 Local & Remote Submission:** Submit jobs from your laptop via SSH, or run directly on a login node — no code changes needed.
 *   **🔁 Simplified Workflow:** Automatically handles code synchronization, log management, and job status tracking.
-*   **🌐 Multi-Cluster Support:** Easily switch between different Slurm clusters.
+*   **🌐 Multi-Cluster Support:** Manage jobs across multiple Slurm clusters from a single interface.
 *   **📝 Reproducibility:** Keep track of your experiments with automatically generated metadata.
-*   **⌨️ Command-Line Interface (CLI):** Manage jobs, view logs, and check status with simple commands.
+*   **⌨️ Command-Line Interface (CLI):** Launch, manage, and monitor jobs — view logs and check status with simple commands.
+*   **🔢 Job Arrays:** Run parameter sweeps by passing a list of arguments — one Slurm array task per entry, no boilerplate.
 
 ## 🚀 Getting Started
 
@@ -65,57 +66,84 @@ sp test-ssh YOUR_CLUSTER
 
 ## 💡 Usage Examples
 
-### Schedule a Shell Script
+### Running modes
+
+The `cluster` parameter controls where and how the job is submitted. The entrypoint and resource settings are the same regardless of mode.
+
+#### Local mode
+
+Use `cluster="local"` when running Slurmpilot directly from a Slurm login node. No SSH connection is opened — `sbatch` is called directly.
 
 ```python
 from slurmpilot import SlurmPilot, JobCreationInfo, unify
 
-# Initialize SlurmPilot for your cluster
-slurm = SlurmPilot(clusters=["YOURCLUSTER"])
-
-# Define the job
-job_info = JobCreationInfo(
-    cluster="YOURCLUSTER",
-    partition="YOURPARTITION",
-    jobname=unify("hello-cluster", method="coolname"),
-    entrypoint="hellocluster_script.sh",
-    src_dir="./",
-    n_cpus=1,
-    max_runtime_minutes=60,
-)
-
-# Launch the job
-job_id = slurm.schedule_job(job_info)
-print(f"Job {job_id} scheduled on {job_info.cluster}")
-```
-
-where `YOURCLUSTER` should be reachable with `sp test-ssh YOUR_CLUSTER`.
-
-### Local mode
-
-Alternatively, you can use `cluster="local"` if you are running Slurmpilot directly from a Slurm login node:
-
-```python
 slurm = SlurmPilot(clusters=["local"])
 
 job_info = JobCreationInfo(
     cluster="local",
     partition="gpu",
-    jobname=unify("my-job", method="date"),
-    entrypoint="train.py",
-    python_binary="python",
+    jobname=unify("hellocluster", method="date"),
+    entrypoint="hellocluster_script.sh",
+    src_dir="example/hellocluster",
     n_cpus=4,
     n_gpus=1,
+    max_runtime_minutes=60,
+)
+
+job_id = slurm.schedule_job(job_info)
+print(f"Job {job_id} submitted")
+```
+
+Job files are written to `~/slurmpilot/jobs/` locally.
+
+#### SSH mode
+
+Use a named cluster (configured in `~/slurmpilot/config/clusters/`) to submit from your laptop. Slurmpilot syncs the source files and calls `sbatch` over SSH.
+
+```python
+slurm = SlurmPilot(clusters=["YOURCLUSTER"])
+
+job_info = JobCreationInfo(
+    cluster="YOURCLUSTER",
+    partition="YOURPARTITION",
+    jobname=unify("hellocluster", method="coolname"),
+    entrypoint="hellocluster_script.sh",
+    src_dir="example/hellocluster",
+    n_cpus=1,
+    max_runtime_minutes=60,
 )
 
 job_id = slurm.schedule_job(job_info)
 ```
 
-Job files are still written to `~/slurmpilot/jobs/` locally; no SSH connection is opened.
+`YOURCLUSTER` must be reachable — verify with `sp test-ssh YOURCLUSTER`.
 
- 
+#### Mock mode
 
-### Schedule a Python Script
+Use `cluster="mock"` to run jobs as plain local processes — no Slurm installation required. The generated bash script is executed as a subprocess and its PID is used as the job ID. Only recommended for testing.
+
+```python
+slurm = SlurmPilot(clusters=["mock"])
+
+job_info = JobCreationInfo(
+    cluster="mock",
+    jobname="test/hellocluster",
+    entrypoint="hellocluster_script.sh",
+    src_dir="example/hellocluster",
+)
+
+job_id = slurm.schedule_job(job_info)
+slurm.wait_completion(job_info.jobname, max_seconds=30)
+stdout, stderr = slurm.log(job_info.jobname)
+```
+
+`sacct` returns `RUNNING` while the process is alive, then `COMPLETED` / `FAILED` / `CANCELLED` based on its exit code. No cluster config file is needed.
+
+### Python entrypoints
+
+Set `python_binary` to run a Python script instead of a bare shell script. All options below work with any running mode.
+
+#### Basic Python job
 
 ```python
 job_info = JobCreationInfo(
@@ -130,11 +158,11 @@ job_info = JobCreationInfo(
     mem=16000,
     env={"API_TOKEN": "your-token"},
 )
-
-job_id = slurm.schedule_job(job_info)
 ```
 
-`bash_setup_command` lets you run commands before the entrypoint (e.g. activate conda, start a server):
+#### Environment setup
+
+`bash_setup_command` runs a shell command before the entrypoint — useful for activating a conda environment or loading modules:
 
 ```python
 job_info = JobCreationInfo(
@@ -143,9 +171,9 @@ job_info = JobCreationInfo(
 )
 ```
 
-### Job Arrays
+#### Job Arrays
 
-Pass a **list** to `python_args` to submit a job array — one task per element:
+Pass a **list** to `python_args` to submit a job array — one Slurm task per element:
 
 ```python
 job_info = JobCreationInfo(
@@ -158,42 +186,26 @@ job_info = JobCreationInfo(
 )
 ```
 
-When calling the entrypoint, each dict is converted to CLI arguments, e.g. `--lr 0.001`,  for the corresponding array task.
+Each dict is converted to CLI arguments (e.g. `--lr 0.001 --batch 32`) for the corresponding array task.
 
-### Local Python Libraries
+#### Local Python Libraries
 
-Ship additional local packages alongside your code with `python_libraries`:
-
+Ship additional local packages alongside your code with `python_libraries`. Each directory is copied into the job folder and added to `PYTHONPATH`:
 
 ```python
 job_info = JobCreationInfo(
     ...
-    python_libraries=["./mylib"],   # library is copied to the job path and added to PYTHONPATH
+    python_libraries=["./custom_library"],
 )
 ```
 
-### Mock mode
+A working example is available in `example/python_dependencies/`. You can run it with:
 
-Use `cluster="mock"` to run jobs as plain local processes — no Slurm installation required. `MockSlurm` intercepts `sbatch`, `sacct`, and `scancel` calls, running the generated bash script as a subprocess and using its PID as the job ID.
-
-This is the recommended mode for **unit tests**:
-
-```python
-slurm = SlurmPilot(clusters=["mock"])
-
-job_info = JobCreationInfo(
-    cluster="mock",
-    jobname="test/my-job",
-    entrypoint="run.sh",
-    src_dir="./tests/fixtures",
-)
-
-job_id = slurm.schedule_job(job_info)
-slurm.wait_completion(job_info.jobname, max_seconds=30)
-stdout, stderr = slurm.log(job_info.jobname)
+```bash
+sp launch --config example/python_dependencies/job.yaml --cluster local --partition YOURPARTITION
+# or
+python example/python_dependencies/launch_python_dependencies.py
 ```
-
-`sacct` returns `RUNNING` while the process is alive, then `COMPLETED` / `FAILED` / `CANCELLED` based on its exit code. No cluster config file is needed.
 
 ## ⌨️ Command-Line Interface (CLI)
 
@@ -359,6 +371,7 @@ The working directory on the remote node is `~/slurmpilot/jobs/YOUR_JOB_NAME`.
 **Why SSH and not a cluster login node?**
 
 A typical workflow involves SSHing to a login node and calling sbatch there. Slurmpilot automates this so you can manage multiple clusters without ever leaving your local machine.
+You can also run directly on a login node by using `cluster="local"`. 
 
 **Why not Docker?**
 
@@ -366,12 +379,7 @@ Docker is great for cloud tools (SkyPilot, SageMaker…) but is often unavailabl
 
 **What are the dependencies?**
 
-Only `pyyaml` is required at runtime. No pandas, no numpy.
-
-```
-slurmpilot
-└── pyyaml
-```
+Only `pyyaml` and `coolname` are required at runtime. No pandas, no numpy.
 
 **What about other tools?**
 
