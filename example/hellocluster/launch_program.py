@@ -1,14 +1,13 @@
 import logging
 from slurmpilot import (
-    default_cluster_and_partition,
     SlurmPilot,
     JobCreationInfo,
     unify,
 )
 
-if __name__ == "__main__":
+
+def main(cluster, partition):
     logging.basicConfig(level=logging.INFO)
-    cluster, partition = default_cluster_and_partition()
     jobname = unify(
         "examples/hello-cluster/job", method="coolname"
     )  # make the jobname unique by appending a coolname

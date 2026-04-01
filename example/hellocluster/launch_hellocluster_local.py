@@ -1,31 +1,13 @@
-import logging
-from slurmpilot import (
-    default_cluster_and_partition,
-    SlurmPilot,
-    JobCreationInfo,
-    unify,
-)
+from launch_program import main
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    cluster = "local"
-    jobname = unify(
-        "examples/hello-cluster/job", method="coolname"
-    )  # make the jobname unique by appending a coolname
-    slurm = SlurmPilot(clusters=[cluster])
-    max_runtime_minutes = 60
-    jobinfo = JobCreationInfo(
-        cluster=cluster,
-        jobname=jobname,
-        entrypoint="hellocluster_script.sh",
-        src_dir="./",
-        n_cpus=1,
-        max_runtime_minutes=max_runtime_minutes,
-        # Shows how to pass an environment variable to the running script
-        env={"API_TOKEN": "DUMMY"},
-    )
-    jobid = slurm.schedule_job(jobinfo)
+    """
+    This example shows how to run a job on a local cluster.
+    This is useful for submitting your jobs from the same machine that will run the jobs, without needing
+    to set up SSH access to a remote cluster. Note that you need to have Slurm installed and configured on
+    your local machine for this to work.
+    """
 
-    slurm.wait_completion(jobname=jobname, max_seconds=max_runtime_minutes * 60)
-
-    print(slurm.job_creation_metadata(jobname))
+    # replace with the name of the partition on your local cluster
+    cluster, partition = "local", "YOURPARTITION"
+    main(cluster, partition)
