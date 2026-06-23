@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pytest
 import yaml
-
 from slurmpilot.config import ClusterConfig, Config, default_cluster_and_partition, load_config
 
 

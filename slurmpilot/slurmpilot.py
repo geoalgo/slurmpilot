@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import List
 
 from .config import Config, default_cluster_and_partition, load_config  # noqa: F401
+from .ignore import make_ignore
 from .job_creation_info import JobCreationInfo  # noqa: F401
 from .job_metadata import JobMetadata
 from .job_path import JobPath
@@ -27,7 +28,9 @@ LOCAL_CLUSTER = "local"
 # sacct format used throughout — must match MockSlurm.SACCT_HEADER
 SACCT_FORMAT = "JobID,Elapsed,start,State,nodelist"
 
-TERMINAL_STATES = frozenset({"COMPLETED", "FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_MEMORY"})
+TERMINAL_STATES = frozenset(
+    {"COMPLETED", "FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_MEMORY"}
+)
 
 
 @dataclass
@@ -69,17 +72,21 @@ def _parse_squeue_rows(output: str) -> list[dict]:
         if len(parts) < 3:
             continue
         try:
-            rows.append({
-                "jobid": int(parts[0].strip()),
-                "priority": int(parts[1].strip()),
-                "state": parts[2].strip(),
-            })
+            rows.append(
+                {
+                    "jobid": int(parts[0].strip()),
+                    "priority": int(parts[1].strip()),
+                    "state": parts[2].strip(),
+                }
+            )
         except ValueError:
             continue
     return rows
 
 
-def _compute_queue_position(jobid: int, partition: str, rows: list[dict]) -> QueuePosition:
+def _compute_queue_position(
+    jobid: int, partition: str, rows: list[dict]
+) -> QueuePosition:
     """Derive a :class:`QueuePosition` from parsed squeue rows.
 
     *rows* must already be sorted by priority descending (as returned by
@@ -142,11 +149,15 @@ class SlurmPilot:
             else:
                 cfg = self.config.cluster_configs.get(cluster)
                 if cfg:
-                    self._connections[cluster] = SSHExecution(host=cfg.host, user=cfg.user)
+                    self._connections[cluster] = SSHExecution(
+                        host=cfg.host, user=cfg.user
+                    )
                 else:
                     self._connections[cluster] = SSHExecution(host=cluster)
 
-    def schedule_job(self, job_info: JobCreationInfo, dryrun: bool = False) -> int | None:
+    def schedule_job(
+        self, job_info: JobCreationInfo, dryrun: bool = False
+    ) -> int | None:
         """Prepare and submit a job.
 
         Copies ``src_dir`` to the local job folder, generates ``slurm_script.sh``,
@@ -172,7 +183,12 @@ class SlurmPilot:
                 "Jobnames must be unique. Use unify(jobname) to append a unique suffix automatically."
             )
 
-        shutil.copytree(src=job_info.src_dir, dst=local.src)
+        src_path = Path(job_info.src_dir)
+        shutil.copytree(
+            src=src_path,
+            dst=local.src,
+            ignore=make_ignore(src_path),
+        )
         if isinstance(job_info.python_args, list):
             lines = []
             for arg in job_info.python_args:
@@ -184,7 +200,11 @@ class SlurmPilot:
         if job_info.python_libraries:
             for lib in job_info.python_libraries:
                 lib_path = Path(lib)
-                shutil.copytree(src=lib_path, dst=local.job_dir / lib_path.name)
+                shutil.copytree(
+                    src=lib_path,
+                    dst=local.job_dir / lib_path.name,
+                    ignore=make_ignore(lib_path),
+                )
 
         job_run_dir = self._job_run_dir(job_info.cluster, local, job_info)
         script = generate_slurm_script(
@@ -234,8 +254,12 @@ class SlurmPilot:
         if cluster is not None and cluster not in (MOCK_CLUSTER, LOCAL_CLUSTER):
             self._download_logs(cluster, jobname, local)
 
-        stdout = local.stdout.read_text(errors="replace") if local.stdout.exists() else ""
-        stderr = local.stderr.read_text(errors="replace") if local.stderr.exists() else ""
+        stdout = (
+            local.stdout.read_text(errors="replace") if local.stdout.exists() else ""
+        )
+        stderr = (
+            local.stderr.read_text(errors="replace") if local.stderr.exists() else ""
+        )
         return stdout, stderr
 
     # ------------------------------------------------------------------
@@ -248,11 +272,17 @@ class SlurmPilot:
             return Path(job_info.remote_path)
         return self.config.remote_slurmpilot_path(job_info.cluster)
 
-    def _job_run_dir(self, cluster: str, local: JobPath, job_info: JobCreationInfo | None = None) -> Path:
+    def _job_run_dir(
+        self, cluster: str, local: JobPath, job_info: JobCreationInfo | None = None
+    ) -> Path:
         """Working directory on the execution host embedded in the Slurm script."""
         if cluster in (MOCK_CLUSTER, LOCAL_CLUSTER):
             return local.job_dir
-        root = self._remote_root(job_info) if job_info else self.config.remote_slurmpilot_path(cluster)
+        root = (
+            self._remote_root(job_info)
+            if job_info
+            else self.config.remote_slurmpilot_path(cluster)
+        )
         return JobPath(
             jobname=local.jobname,
             root=root,
@@ -306,12 +336,16 @@ class SlurmPilot:
             root=self._remote_root_for_job(jobname, cluster),
         )
         try:
-            self._connections[cluster].download_folder(remote.log_dir, local.log_dir.parent)
+            self._connections[cluster].download_folder(
+                remote.log_dir, local.log_dir.parent
+            )
         except Exception as e:
             logger.warning(f"Could not download logs for {jobname}: {e}")
 
     def _read_jobid(self, jobname: str) -> int | None:
-        f = JobPath(jobname=jobname, root=self.config.local_slurmpilot_path()).jobid_file
+        f = JobPath(
+            jobname=jobname, root=self.config.local_slurmpilot_path()
+        ).jobid_file
         if not f.exists():
             return None
         return json.loads(f.read_text())["jobid"]
@@ -340,6 +374,7 @@ class SlurmPilot:
         ``creation``, ``elapsed``, ``state``, ``nodelist``.
         """
         from collections import defaultdict
+
         by_cluster: dict[str, list[tuple[JobMetadata, int]]] = defaultdict(list)
         for jn in jobnames:
             meta = self._read_metadata(jn)
@@ -358,7 +393,9 @@ class SlurmPilot:
                     f'sacct --format="{SACCT_FORMAT}" -X -p --jobs={job_ids_str}'
                 )
                 if result.failed:
-                    logger.warning(f"sacct failed for cluster {cluster}: {result.stderr}")
+                    logger.warning(
+                        f"sacct failed for cluster {cluster}: {result.stderr}"
+                    )
                     continue
                 sacct_out = result.stdout
 
@@ -378,16 +415,18 @@ class SlurmPilot:
                     parsed_task_id = int(task_id) if task_id is not None else None
                 except ValueError:
                     parsed_task_id = None
-                rows.append({
-                    "jobname":  meta.jobname,
-                    "jobid":    raw_id,
-                    "task_id":  parsed_task_id,
-                    "cluster":  cluster,
-                    "creation": meta.date,
-                    "elapsed":  parts[1] if len(parts) > 1 else "",
-                    "state":    parts[3] if len(parts) > 3 else None,
-                    "nodelist": parts[4] if len(parts) > 4 else "",
-                })
+                rows.append(
+                    {
+                        "jobname": meta.jobname,
+                        "jobid": raw_id,
+                        "task_id": parsed_task_id,
+                        "cluster": cluster,
+                        "creation": meta.date,
+                        "elapsed": parts[1] if len(parts) > 1 else "",
+                        "state": parts[3] if len(parts) > 3 else None,
+                        "nodelist": parts[4] if len(parts) > 4 else "",
+                    }
+                )
         return rows
 
     def stop_job(self, jobname: str) -> None:
@@ -459,12 +498,16 @@ class SlurmPilot:
         if cluster in (MOCK_CLUSTER, LOCAL_CLUSTER):
             return
         local = JobPath(jobname=jobname, root=self.config.local_slurmpilot_path())
-        remote = JobPath(jobname=jobname, root=self._remote_root_for_job(jobname, cluster))
+        remote = JobPath(
+            jobname=jobname, root=self._remote_root_for_job(jobname, cluster)
+        )
         self._connections[cluster].download_folder(remote.job_dir, local.job_dir.parent)
 
     def local_job_path(self, jobname: str) -> Path:
         """Return the local job directory for ``jobname``."""
-        return JobPath(jobname=jobname, root=self.config.local_slurmpilot_path()).job_dir
+        return JobPath(
+            jobname=jobname, root=self.config.local_slurmpilot_path()
+        ).job_dir
 
     def remote_job_path(self, jobname: str) -> Path | None:
         """Return the remote job directory, or None for mock/local clusters."""
@@ -532,6 +575,7 @@ class SlurmPilot:
 # ------------------------------------------------------------------
 # Module-level helpers for real Slurm CLI calls
 # ------------------------------------------------------------------
+
 
 def _call_sbatch(
     connection: RemoteExecution,

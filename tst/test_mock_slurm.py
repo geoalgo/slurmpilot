@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-
 from slurmpilot.mock_slurm import MockSlurm
 
 # ---------------------------------------------------------------------------

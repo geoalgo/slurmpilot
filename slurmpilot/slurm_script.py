@@ -51,8 +51,8 @@ def _write_preamble(f: io.StringIO, job_info: JobCreationInfo) -> None:
         sbatch(f"--account={job_info.account}")
     if job_info.max_runtime_minutes:
         sbatch(f"--time={job_info.max_runtime_minutes}")
-    if job_info.sbatch_arguments:
-        f.write(f"#SBATCH {job_info.sbatch_arguments}\n")
+    for argument in job_info.sbatch_arguments:
+        f.write(f"#SBATCH {argument}\n")
 
 
 def _write_body(

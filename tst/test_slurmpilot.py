@@ -3,9 +3,9 @@ import sys
 from pathlib import Path
 
 import pytest
-
 from slurmpilot.config import Config
 from slurmpilot.job_creation_info import JobCreationInfo
+
 from slurmpilot import SlurmPilot
 
 # ---------------------------------------------------------------------------
@@ -532,3 +532,111 @@ class TestRemotePath:
         script = (tmp_path / "jobs" / "myjob" / "slurm_script.sh").read_text()
         assert "PYTHONPATH" in script
         assert "/custom/root" in script
+
+
+# ---------------------------------------------------------------------------
+# .gitignore — patterns that exclude files/folders from the staged copy
+# ---------------------------------------------------------------------------
+
+def make_src_with_filtered_files(tmp_path: Path) -> Path:
+    """A src dir with assorted files used to verify .gitignore filtering."""
+    src = make_bash_src(tmp_path / "src")
+    (src / "keep.txt").write_text("keep\n")
+    (src / "skip.log").write_text("skip\n")
+    (src / "data").mkdir()
+    (src / "data" / "big.bin").write_text("x")
+    (src / "__pycache__").mkdir()
+    (src / "__pycache__" / "x.pyc").write_text("")
+    return src
+
+
+def staged_src(tmp_path: Path, jobname: str = "myjob") -> Path:
+    return tmp_path / "jobs" / jobname / "src"
+
+
+class TestGitignore:
+    def test_gitignore_excludes_matching_files(self, tmp_path):
+        src = make_src_with_filtered_files(tmp_path)
+        (src / ".gitignore").write_text("*.log\ndata/\n__pycache__/\n")
+        slurm = SlurmPilot(config=make_config(tmp_path), clusters=["mock"])
+        job = JobCreationInfo(
+            jobname="myjob",
+            entrypoint="main.sh",
+            src_dir=str(src),
+            cluster="mock",
+        )
+        slurm.schedule_job(job, dryrun=True)
+        staged = staged_src(tmp_path)
+        assert (staged / "main.sh").exists()
+        assert (staged / "keep.txt").exists()
+        assert not (staged / "skip.log").exists()
+        assert not (staged / "data").exists()
+        assert not (staged / "__pycache__").exists()
+
+    def test_negation_re_includes_file(self, tmp_path):
+        src = make_src_with_filtered_files(tmp_path)
+        (src / "keep.log").write_text("keep me\n")
+        (src / ".gitignore").write_text("*.log\n!keep.log\n")
+        slurm = SlurmPilot(config=make_config(tmp_path), clusters=["mock"])
+        job = JobCreationInfo(
+            jobname="myjob",
+            entrypoint="main.sh",
+            src_dir=str(src),
+            cluster="mock",
+        )
+        slurm.schedule_job(job, dryrun=True)
+        staged = staged_src(tmp_path)
+        assert (staged / "keep.log").exists()
+        assert not (staged / "skip.log").exists()
+
+    def test_no_gitignore_no_filtering(self, tmp_path):
+        src = make_src_with_filtered_files(tmp_path)
+        slurm = SlurmPilot(config=make_config(tmp_path), clusters=["mock"])
+        job = JobCreationInfo(
+            jobname="myjob",
+            entrypoint="main.sh",
+            src_dir=str(src),
+            cluster="mock",
+        )
+        slurm.schedule_job(job, dryrun=True)
+        staged = staged_src(tmp_path)
+        assert (staged / "skip.log").exists()
+        assert (staged / "data" / "big.bin").exists()
+
+    def test_nested_pattern_matches_subdir_file(self, tmp_path):
+        src = make_bash_src(tmp_path / "src")
+        (src / "pkg").mkdir()
+        (src / "pkg" / "keep.py").write_text("")
+        (src / "pkg" / "drop.pyc").write_text("")
+        (src / ".gitignore").write_text("*.pyc\n")
+        slurm = SlurmPilot(config=make_config(tmp_path), clusters=["mock"])
+        job = JobCreationInfo(
+            jobname="myjob",
+            entrypoint="main.sh",
+            src_dir=str(src),
+            cluster="mock",
+        )
+        slurm.schedule_job(job, dryrun=True)
+        staged = staged_src(tmp_path)
+        assert (staged / "pkg" / "keep.py").exists()
+        assert not (staged / "pkg" / "drop.pyc").exists()
+
+    def test_python_library_gitignore_applied(self, tmp_path):
+        lib_dir = make_custom_lib(tmp_path / "libs")
+        (lib_dir / "tests").mkdir()
+        (lib_dir / "tests" / "test_x.py").write_text("")
+        (lib_dir / ".gitignore").write_text("tests/\n")
+        src = make_python_src_using_lib(tmp_path / "src")
+        slurm = SlurmPilot(config=make_config(tmp_path), clusters=["mock"])
+        job = JobCreationInfo(
+            jobname="libjob",
+            entrypoint="main.py",
+            src_dir=str(src),
+            cluster="mock",
+            python_binary=sys.executable,
+            python_libraries=[str(lib_dir)],
+        )
+        slurm.schedule_job(job, dryrun=True)
+        staged_lib = tmp_path / "jobs" / "libjob" / "mylib"
+        assert (staged_lib / "values.py").exists()
+        assert not (staged_lib / "tests").exists()

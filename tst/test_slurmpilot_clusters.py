@@ -10,10 +10,10 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from slurmpilot.config import ClusterConfig, Config
 from slurmpilot.job_creation_info import JobCreationInfo
 from slurmpilot.remote_command import CommandResult, RemoteExecution
+
 from slurmpilot import SlurmPilot
 
 # ---------------------------------------------------------------------------

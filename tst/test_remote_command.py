@@ -3,7 +3,6 @@ from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from slurmpilot.remote_command import CommandResult, LocalExecution, SSHExecution
 
 # ---------------------------------------------------------------------------

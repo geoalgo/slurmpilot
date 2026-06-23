@@ -209,6 +209,21 @@ sp launch --config example/python_dependencies/job.yaml --cluster local --partit
 python example/python_dependencies/launch_python_dependencies.py
 ```
 
+### Excluding files from the upload
+
+Slurmpilot reads the `.gitignore` at the root of your `src_dir` (and each `python_libraries` directory) and skips matching files when staging the copy that ships to the cluster. Standard `.gitignore` syntax applies:
+
+```
+# .gitignore
+*.log
+__pycache__/
+data/
+checkpoints/
+!keep-this.log
+```
+
+Sub-directory `.gitignore` files are not consulted.
+
 ## ⌨️ Command-Line Interface (CLI)
 
 All job commands accept an optional job name. When omitted, the most recently submitted job is used — so after `sp launch`, you can just run `sp log`, `sp status`, etc. without typing the job name:

@@ -5,7 +5,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from slurmpilot.cli import (
     _resolve_jobname,
     cmd_list_jobs,
@@ -272,7 +271,7 @@ def test_cmd_list_jobs_no_jobs(config, capsys):
 
 def test_launch_yaml_python_libraries_resolved_relative_to_yaml(tmp_path):
     """python_libraries relative paths in YAML are resolved against the YAML file's directory."""
-    from slurmpilot.cli import _build_job_info, _LAUNCH_FIELDS
+    from slurmpilot.cli import _LAUNCH_FIELDS, _build_job_info
 
     src = tmp_path / "src"
     src.mkdir()
@@ -284,13 +283,13 @@ def test_launch_yaml_python_libraries_resolved_relative_to_yaml(tmp_path):
 
     yaml_file = tmp_path / "job.yaml"
     yaml_file.write_text(
-        f"cluster: mock\n"
-        f"entrypoint: run.py\n"
-        f"jobname: test-job\n"
-        f"src_dir: src\n"
-        f"python_binary: python3\n"
-        f"python_libraries:\n"
-        f"  - mylib\n"
+        "cluster: mock\n"
+        "entrypoint: run.py\n"
+        "jobname: test-job\n"
+        "src_dir: src\n"
+        "python_binary: python3\n"
+        "python_libraries:\n"
+        "  - mylib\n"
     )
 
     args = argparse.Namespace(
@@ -385,7 +384,7 @@ def test_cmd_queue_status_mock_cluster(job, config, capsys):
 
 def test_launch_cli_remote_path_overrides_yaml(tmp_path):
     """--remote-path CLI flag overrides the value from YAML."""
-    from slurmpilot.cli import _build_job_info, _LAUNCH_FIELDS
+    from slurmpilot.cli import _LAUNCH_FIELDS, _build_job_info
 
     src = tmp_path / "src"
     src.mkdir()
@@ -413,7 +412,7 @@ def test_launch_cli_remote_path_overrides_yaml(tmp_path):
 
 def test_launch_cli_python_libraries_overrides_yaml(tmp_path):
     """--python-libraries CLI flag overrides the value from YAML."""
-    from slurmpilot.cli import _build_job_info, _LAUNCH_FIELDS
+    from slurmpilot.cli import _LAUNCH_FIELDS, _build_job_info
 
     src = tmp_path / "src"
     src.mkdir()
@@ -447,7 +446,7 @@ def test_launch_cli_python_libraries_overrides_yaml(tmp_path):
 
 def test_launch_cli_python_libraries_no_yaml(tmp_path):
     """--python-libraries works without a YAML config, resolved against cwd."""
-    from slurmpilot.cli import _build_job_info, _LAUNCH_FIELDS
+    from slurmpilot.cli import _LAUNCH_FIELDS, _build_job_info
 
     src = tmp_path / "src"
     src.mkdir()
